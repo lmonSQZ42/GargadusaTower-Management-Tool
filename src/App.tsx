@@ -26,11 +26,14 @@ import * as XLSX from "xlsx";
 
 const LOCAL_STORAGE_KEY = "etrian_roster_vector_state";
 const METADATA_KEY = "etrian_parent_json_state";
+const GUILD_NAME_KEY = "etrian_guild_name_state";
 
 export default function App() {
   const [roster, setRoster] = useState<RosterMember[]>([]);
   const [selectedMember, setSelectedMember] = useState<RosterMember | null>(null);
   const [originalFullData, setOriginalFullData] = useState<any>(null);
+  const [guildName, setGuildName] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [statusBarMsg, setStatusBarMsg] = useState("");
   const [currentTime, setCurrentTime] = useState("");
   const [activeTab, setActiveTab] = useState<"roster" | "potentialDiff" | "party" | "top10" | "listPartyDiff">("roster");
@@ -67,6 +70,13 @@ export default function App() {
       } catch (e) {
         setOriginalFullData(null);
       }
+    }
+
+    const savedGuildName = localStorage.getItem(GUILD_NAME_KEY);
+    if (savedGuildName) {
+      setGuildName(savedGuildName);
+    } else {
+      setGuildName("Sample Barracks");
     }
 
     // Set time
@@ -170,21 +180,28 @@ export default function App() {
     showFeedback("Initiated new recruit profile. Add details and click Save.");
   };
 
-  const handleImportSuccess = (importedRoster: RosterMember[], parsedFullData: any) => {
+  const handleImportSuccess = (importedRoster: RosterMember[], parsedFullData: any, importedGuildName?: string | null) => {
     setRoster(importedRoster);
     setOriginalFullData(parsedFullData);
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(importedRoster));
     if (parsedFullData) {
       localStorage.setItem(METADATA_KEY, JSON.stringify(parsedFullData));
     }
+    
+    const finalGuildName = importedGuildName || (parsedFullData && (parsedFullData.guildName || (parsedFullData.gameState && parsedFullData.gameState.guildName))) || "Imported Guild";
+    setGuildName(finalGuildName);
+    localStorage.setItem(GUILD_NAME_KEY, finalGuildName);
+
     setSelectedMember(importedRoster[0] || null);
-    showFeedback(`Parsed and locked ${importedRoster.length} characters in roster State`);
+    showFeedback(`Parsed ${importedRoster.length} characters in Guild "${finalGuildName}" successfully.`);
   };
 
   const handleResetToDefault = () => {
     if (window.confirm("Restore guild roster to clean default sample characters? This overrides custom modifications.")) {
       setRoster(DEFAULT_ROSTER);
       setOriginalFullData(null);
+      setGuildName("Sample Barracks");
+      localStorage.setItem(GUILD_NAME_KEY, "Sample Barracks");
       localStorage.removeItem(LOCAL_STORAGE_KEY);
       localStorage.removeItem(METADATA_KEY);
       setSelectedMember(null);
@@ -192,19 +209,24 @@ export default function App() {
     }
   };
 
+  const executeClearDataAll = () => {
+    setRoster([]);
+    setOriginalFullData(null);
+    setGuildName(null);
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    localStorage.removeItem(METADATA_KEY);
+    localStorage.removeItem(GUILD_NAME_KEY);
+    setSelectedMember(null);
+    showFeedback("All imported JSON roster data cleared.");
+  };
+
   const handleClearDataAll = () => {
-    if (window.confirm("Are you sure you want to clear/empty all imported and loaded data from JSON? This will not affect your preset party squad slots.")) {
-      setRoster([]);
-      setOriginalFullData(null);
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-      localStorage.removeItem(METADATA_KEY);
-      setSelectedMember(null);
-      showFeedback("All imported JSON roster data cleared.");
-    }
+    setShowClearConfirm(true);
   };
 
   const handleClearRoster = () => {
-    handleClearDataAll();
+    setShowClearConfirm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Download modified JSON
@@ -213,7 +235,7 @@ export default function App() {
       alert("No roster items to package.");
       return;
     }
-    const jsonStr = repackageJson(originalFullData, roster);
+    const jsonStr = repackageJson(originalFullData, roster, guildName);
     
     const blob = new Blob([jsonStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -343,14 +365,35 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
-            <button
-               onClick={handleClearDataAll}
-               title="clear data all"
-               className="px-3.5 py-2 rounded bg-rose-950/25 border border-rose-500/20 hover:border-rose-500/40 text-rose-400 hover:bg-rose-500/10 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4 text-rose-400" />
-              Clear Data All
-            </button>
+            {showClearConfirm ? (
+              <div className="flex items-center gap-2 bg-rose-950/40 border border-rose-500/40 rounded px-3 py-1.5 transition-all">
+                <span className="text-xs text-rose-200 font-bold font-sans">Are you sure?</span>
+                <button
+                  onClick={() => {
+                    executeClearDataAll();
+                    setShowClearConfirm(false);
+                  }}
+                  className="px-2.5 py-1 bg-[#dc2626] hover:bg-rose-500 text-white rounded text-[10px] uppercase font-black transition-all cursor-pointer"
+                >
+                  Yes
+                </button>
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-slate-200 rounded text-[10px] uppercase font-semibold transition-all cursor-pointer"
+                >
+                  No
+                </button>
+              </div>
+            ) : (
+              <button
+                 onClick={handleClearDataAll}
+                 title="clear data all"
+                 className="px-3.5 py-2 rounded bg-rose-950/25 border border-rose-500/20 hover:border-rose-500/40 text-rose-400 hover:bg-rose-500/10 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4 text-rose-400" />
+                Clear Data All
+              </button>
+            )}
 
             <button
                onClick={handleDownloadJson}
@@ -376,7 +419,7 @@ export default function App() {
       <main className="w-full max-w-[1920px] mx-auto px-4 sm:px-8 py-6 space-y-6">
         
         {/* KPI Dashboard Indicators */}
-        <RosterSummary roster={activeRoster} />
+        <RosterSummary roster={activeRoster} guildName={guildName} />
 
         {/* Tabs Control */}
         <div id="navigation-tabs-container" className="flex items-end border-b border-white/10 overflow-x-auto scrollbar-none pt-2 -mb-[1px] gap-1">

@@ -73,6 +73,7 @@ export interface RosterMember {
 export interface ParseResult {
   fullData?: any; // The whole JSON parsed, so we can preserve it when downloaded
   roster: RosterMember[];
+  guildName?: string | null;
 }
 
 export interface Party {

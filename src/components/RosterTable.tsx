@@ -284,13 +284,13 @@ export const RosterTable: React.FC<RosterTableProps> = ({
     "party",
     "name",
     "job",
+    "roles",
     "rarity",
     "level",
     "age",
     "potential",
     "ceiling",
     "overallCurrent",
-    "roles",
     "actions"
   ]);
 

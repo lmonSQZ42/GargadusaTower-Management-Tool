@@ -114,12 +114,11 @@ export const Top10Potential: React.FC<Top10PotentialProps> = ({
           {/* Legend header row for table feel */}
           <div className="hidden md:grid grid-cols-12 gap-4 px-4 text-[10px] font-mono uppercase tracking-widest text-slate-500 font-bold">
             <div className="col-span-1">Rank</div>
-            <div className="col-span-3">Adventurer & Specifications</div>
-            <div className="col-span-1 text-center font-bold">Diff Pot</div>
+            <div className="col-span-4">Adventurer & Specifications</div>
+            <div className="col-span-2 text-center font-bold">Untapped Delta</div>
             <div className="col-span-1 text-center font-bold">CURRENT OVR</div>
             <div className="col-span-1 text-center font-bold">Ceiling</div>
             <div className="col-span-3 text-center font-bold">Growth Progress Track</div>
-            <div className="col-span-2 text-right font-bold">Untapped Delta</div>
           </div>
 
           <div className="space-y-3">
@@ -148,7 +147,7 @@ export const Top10Potential: React.FC<Top10PotentialProps> = ({
               return (
                 <div
                   key={member.id}
-                  className="bg-[#0a0a0a] border border-white/5 rounded-lg p-3 sm:p-4 grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-center transition-all group shadow-md"
+                  className="bg-[#0a0a0a] border border-white/5 rounded-lg p-3 sm:p-4 grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-center transition-all group shadow-md hover:border-white/10"
                 >
                   {/* Rank Cell */}
                   <div className="col-span-1 flex items-center space-x-2 md:space-x-0">
@@ -161,7 +160,7 @@ export const Top10Potential: React.FC<Top10PotentialProps> = ({
                   </div>
 
                   {/* Character Identity Cell */}
-                  <div className="col-span-1 md:col-span-3 min-w-0 space-y-1">
+                  <div className="col-span-1 md:col-span-4 min-w-0 space-y-1">
                     <div className="flex items-center space-x-2">
                       <span className="font-bold text-slate-100 transition-colors truncate text-sm sm:text-base">
                         {member.name}
@@ -193,11 +192,12 @@ export const Top10Potential: React.FC<Top10PotentialProps> = ({
                     </div>
                   </div>
 
-                  {/* Difference Potential Cell */}
-                  <div className="col-span-1 text-left md:text-center">
-                    <div className="text-[10px] text-slate-500 font-mono uppercase block md:hidden">Difference Potential</div>
-                    <span className="font-mono font-bold text-emerald-400 text-xs sm:text-sm">
-                      {Math.round(difference)}
+                  {/* Difference Potential Cell (Merged with Untapped Delta) */}
+                  <div className="col-span-1 md:col-span-2 text-left md:text-center flex md:flex-col items-center md:items-center justify-between md:justify-center gap-2">
+                    <div className="text-[10px] text-slate-500 font-mono uppercase block md:hidden">Untapped Delta</div>
+                    <span className="text-emerald-400 font-black font-mono text-xs sm:text-sm flex items-center gap-1 bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/20 shadow-sm shadow-emerald-500/5">
+                      <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                      +{formattedDiff}
                     </span>
                   </div>
 
@@ -235,17 +235,6 @@ export const Top10Potential: React.FC<Top10PotentialProps> = ({
                     <div className="flex items-center justify-between text-[9px] text-slate-500 font-mono">
                       <span>Base {formattedCurrent}</span>
                       <span>Ceiling {formattedCeiling}</span>
-                    </div>
-                  </div>
-
-                  {/* Difference Delta Stat */}
-                  <div className="col-span-2 text-left md:text-right flex md:flex-col items-center md:items-end justify-between md:justify-center gap-2">
-                    <span className="text-[10px] text-slate-500 font-mono uppercase md:hidden">Untapped Delta</span>
-                    <div className="text-right space-y-0.5">
-                      <span className="text-emerald-450 font-black font-mono text-sm sm:text-base flex items-center gap-1 bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/20 shadow-sm">
-                        <TrendingUp className="w-3.5 h-3.5" />
-                        +{formattedDiff}
-                      </span>
                     </div>
                   </div>
 

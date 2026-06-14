@@ -1,7 +1,12 @@
+# 🖥️ Packaging as a Standalone Desktop Executable (.exe)
+
+This application is fully compatible and optimized to be compiled into a local, high-performance desktop application for Windows, MacOS, or Linux.
+
+We have pre-configured relative path resolution (`base: './'`) in `vite.config.ts`, written the Electron Main framework (`electron.js`), and provided safe context bridging (`preload.cjs`).
 
 ---
 
-## Step Setup on Your Local Machine
+## ⚡ Quick 3-Step Setup on Your Local Machine
 
 Once you download the ZIP or export this repository to your local computer, follow these simple steps inside your terminal:
 
@@ -18,10 +23,11 @@ Ensure your `package.json` contains a `"main": "electron.js"` property to direct
 ```
 
 ### Step 2.5 Because we have only been running the development server (npm run dev), Vite hasn't actually generated those static files yet, so the dist folder doesn't exist. Electron is looking for a file that isn't there, resulting in a blank screen.
-
 (Note: You can safely ignore the "Access is denied" cache warnings at the top of your log. Those are very common, harmless Electron quirks on Windows).)
-
+```bash
 npm run build
+```
+
 
 ### Step 3: Run or Build the Standalone Application
 To launch the app on your computer during local development:
@@ -38,10 +44,10 @@ npm run desktop:build
 
 #=======================================================================================================================#
 
-Here is the way to fix this Windows conflict.
+Here is the bulletproof way to fix this Windows conflict.
 1. Rename Your Desktop File
 
-In your project folder (I:\Gargadusa Apps Project-latest\desktop-mode), find the file named electron.js (or elextron.js) and rename it to main.js.
+In your project folder , find the file named electron.js (or elextron.js) and rename it to main.js.
 
 (This removes the conflict so Windows doesn't get confused by the word "electron" anymore).
 2. Update package.json

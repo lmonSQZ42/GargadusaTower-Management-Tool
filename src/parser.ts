@@ -4,6 +4,14 @@ import { RosterMember, ParseResult } from "./types";
  * Robustly parses a roster string from a file using the logic adapted from extract.py
  */
 export function extractRosterRobust(rawContent: string): ParseResult {
+  // Try extracting guildName using regex fallback first
+  let extractedGuildName: string | null = null;
+  const guildNameRegex = /"guildName"\s*:\s*"([^"]+)"/;
+  const match = guildNameRegex.exec(rawContent);
+  if (match) {
+    extractedGuildName = match[1];
+  }
+
   // Try ATTEMPT 1: Clean and standard JSON parse
   try {
     const lines = rawContent.split(/\r?\n/);
@@ -31,11 +39,18 @@ export function extractRosterRobust(rawContent: string): ParseResult {
     const parsed = JSON.parse(content);
     
     let rosterRaw: any = null;
+    let guildName: string | null = extractedGuildName;
     if (parsed && typeof parsed === "object") {
       if (parsed.gameState && typeof parsed.gameState === "object" && Array.isArray(parsed.gameState.roster)) {
         rosterRaw = parsed.gameState.roster;
+        if (parsed.gameState.guildName) {
+          guildName = parsed.gameState.guildName;
+        }
       } else if (Array.isArray(parsed.roster)) {
         rosterRaw = parsed.roster;
+        if (parsed.guildName) {
+          guildName = parsed.guildName;
+        }
       } else if (Array.isArray(parsed)) {
         rosterRaw = parsed;
       }
@@ -44,7 +59,8 @@ export function extractRosterRobust(rawContent: string): ParseResult {
     if (Array.isArray(rosterRaw)) {
       return {
         fullData: parsed,
-        roster: mapRawRosterToMembers(rosterRaw)
+        roster: mapRawRosterToMembers(rosterRaw),
+        guildName: guildName || extractedGuildName
       };
     }
   } catch (err) {
@@ -60,7 +76,7 @@ export function extractRosterRobust(rawContent: string): ParseResult {
     let endIdx = -1;
     let inString = false;
     let escape = false;
-
+ 
     for (let i = startIdx; i < rawContent.length; i++) {
       const char = rawContent[i];
       if (escape) {
@@ -100,7 +116,8 @@ export function extractRosterRobust(rawContent: string): ParseResult {
         if (Array.isArray(parsedRoster)) {
           return {
             fullData: { roster: parsedRoster },
-            roster: mapRawRosterToMembers(parsedRoster)
+            roster: mapRawRosterToMembers(parsedRoster),
+            guildName: extractedGuildName
           };
         }
       } catch (decodeErr) {
@@ -160,7 +177,7 @@ function mapRawRosterToMembers(rawList: any[]): RosterMember[] {
 /**
  * Packages the updated RosterMembers back into the original file structure (wrapping or updating)
  */
-export function repackageJson(originalFullData: any, updatedRoster: RosterMember[]): string {
+export function repackageJson(originalFullData: any, updatedRoster: RosterMember[], currentGuildName?: string | null): string {
   // Convert RosterMembers back to the exact format needed by saving (stripping key 'id')
   const cleanRosterRaw = updatedRoster.map(m => {
     const { id, ...rest } = m;
@@ -172,20 +189,33 @@ export function repackageJson(originalFullData: any, updatedRoster: RosterMember
     const copy = JSON.parse(JSON.stringify(originalFullData));
     if (copy.gameState && typeof copy.gameState === "object") {
       copy.gameState.roster = cleanRosterRaw;
+      if (currentGuildName) {
+        copy.gameState.guildName = currentGuildName;
+      }
     } else if (copy.roster) {
       copy.roster = cleanRosterRaw;
+      if (currentGuildName) {
+        copy.guildName = currentGuildName;
+      }
     } else if (Array.isArray(copy)) {
       return JSON.stringify(cleanRosterRaw, null, 2);
     } else {
       copy.roster = cleanRosterRaw;
+      if (currentGuildName) {
+        copy.guildName = currentGuildName;
+      }
     }
     return JSON.stringify(copy, null, 2);
   }
 
   // Fallback default wrapper:
-  return JSON.stringify({
+  const outObj: any = {
     gameState: {
       roster: cleanRosterRaw
     }
-  }, null, 2);
+  };
+  if (currentGuildName) {
+    outObj.gameState.guildName = currentGuildName;
+  }
+  return JSON.stringify(outObj, null, 2);
 }

@@ -4,7 +4,7 @@ import { extractRosterRobust } from "../parser";
 import { RosterMember } from "../types";
 
 interface JsonImportExportProps {
-  onImportSuccess: (roster: RosterMember[], originalFullData: any) => void;
+  onImportSuccess: (roster: RosterMember[], originalFullData: any, guildName?: string | null) => void;
 }
 
 export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImportSuccess }) => {
@@ -26,7 +26,7 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImportSucc
         throw new Error("Parsed successfully but found 0 adventurers.");
       }
 
-      onImportSuccess(result.roster, result.fullData);
+      onImportSuccess(result.roster, result.fullData, result.guildName);
       setParseStatus({
         status: "success",
         message: `Guild accepted! Loaded ${result.roster.length} members successfully.`,
