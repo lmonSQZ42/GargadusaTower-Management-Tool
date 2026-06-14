@@ -47,13 +47,15 @@ npm run desktop:build
 Here is the bulletproof way to fix this Windows conflict.
 1. Rename Your Desktop File
 
-In your project folder , find the file named electron.js (or elextron.js) and rename it to main.js.
+In your project folder (I:\Gargadusa Apps Project-latest\desktop-mode), find the file named electron.js (or elextron.js) and rename it to main.js.
 
 (This removes the conflict so Windows doesn't get confused by the word "electron" anymore).
 2. Update package.json
 
 Since you renamed the file, you need to tell package.json where the new entry point is.
 Open package.json and change line 6 from "main": "electron.js", to "main": "main.js",.
+& add npx on "desktop:run": "npx electron .",
+
 3. Force the Correct Command
 
 To guarantee Windows never makes this mistake again, we can use npx in your script. npx strictly tells your computer, "Do not guess. Use the npm module."

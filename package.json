@@ -1,7 +1,9 @@
 {
-  "name": "react-example",
+  "name": "Gargadusa-Tower-Management-Tool",
   "private": true,
   "version": "0.0.0",
+  "description": "Gargadus tower management tool",
+  "author": "lmonSQZ42",
   "type": "module",
   "main": "main.js",
   "scripts": {
@@ -10,7 +12,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "desktop:run": "electron .",
+    "desktop:run": "npx electron .",
     "desktop:build": "vite build && electron-builder"
   },
   "dependencies": {
