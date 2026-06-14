@@ -2,8 +2,9 @@
 <img width="720" height="405" alt="GHBanner" src="https://drive.usercontent.google.com/download?id=1uiYuPu0050KLogZ-iSdOc-qwVmJvHeU2&export=download&authuser=1" />
 </div>
 
-# Portable & Installer.
+# Portable & Installer (windows only).
 Via Gdrive.
+
 <a href="https://drive.google.com/file/d/1nRbs3XPoyZ0RsXc5lgBPfpO3c0nJr6hP/view?usp=sharing">
   <img src="https://www.gstatic.com/images/branding/productlogos/drive_2026/v1/web-48dp/logo_drive_2026_color_1x_web_48dp.png" alt="Google Drive" title="DL via GDrive" width="48">
 </a>
