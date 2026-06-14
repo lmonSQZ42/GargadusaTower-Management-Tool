@@ -1,6 +1,0 @@
-{
-  "name": "Gargadusa Tower - Adventurer Extraction & Management",
-  "description": "An interactive web editor to parse, filter, modify, and save adventurer rosters from JSON. Export to updated JSON or Excel spreadsheets identical to the extract.py structure.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
