@@ -20,8 +20,9 @@ Via Gdrive.
 1. ~~Roster Editor~~
 	- ~~Manually edit your adventurer roster (**USE AT YOUR OWN RISK!!!**).~~ **BROKE**
 2. Party Management:
-2. Set Party 
-	- Create, save, and load specific party setups.
+2. Set Party _(only in programs)_
+	- Local save, and load party. _(only in programs)_
+ 	- Export party slot.
     - Custom names for saved slots.
 3. Top 10
 	-	Automatically displays the top 10 adventurers with the highest OVR (Overall) headroom.
@@ -30,7 +31,8 @@ Via Gdrive.
 	- Highlights on primary & secondary stats req for the classes.
 
 
-Download edited .json files.
+~~Download edited .json files.~~
+
 Export roster only to .xlsx.
 
 

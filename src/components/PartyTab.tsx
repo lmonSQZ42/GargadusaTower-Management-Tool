@@ -77,13 +77,20 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPartyId, setSelectedPartyId] = useState<string>("");
   const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
-  const [selectedPresetSlot, setSelectedPresetSlot] = useState<1 | 2 | 3>(1);
+  const [selectedPresetSlot, setSelectedPresetSlot] = useState<1 | 2 | 3>(() => {
+    const saved = localStorage.getItem("guild-selected-preset-slot");
+    if (saved === "1" || saved === "2" || saved === "3") {
+      return parseInt(saved, 10) as 1 | 2 | 3;
+    }
+    return 1;
+  });
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>("all");
   const [presetUpdateTrigger, setPresetUpdateTrigger] = useState(0);
 
   // Initialize parties from localStorage or defaults
   useEffect(() => {
-    const saved = localStorage.getItem("guild-parties");
+    const slot = selectedPresetSlot;
+    const saved = localStorage.getItem(`guild-parties-preset-${slot}`);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -94,11 +101,39 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
             while (ids.length < 5) ids.push("");
             return {
               ...p,
-              memberIds: ids
+              memberIds: ids,
+              leaderId: typeof p.leaderId === "string" ? p.leaderId : null
             };
           });
           setParties(normalized);
           setSelectedPartyId(normalized[0].id);
+          return;
+        }
+      } catch (e) {
+        console.error("Failed to parse saved preset parties", e);
+      }
+    }
+
+    // Fallback to active/legacy
+    const legacySaved = localStorage.getItem("guild-parties");
+    if (legacySaved) {
+      try {
+        const parsed = JSON.parse(legacySaved);
+        if (Array.isArray(parsed) && parsed.length === 10) {
+          const normalized = parsed.map(p => {
+            let ids = Array.isArray(p.memberIds) ? p.memberIds.filter(id => typeof id === "string") : [];
+            ids = ids.slice(0, 5);
+            while (ids.length < 5) ids.push("");
+            return {
+              ...p,
+              memberIds: ids,
+              leaderId: typeof p.leaderId === "string" ? p.leaderId : null
+            };
+          });
+          setParties(normalized);
+          setSelectedPartyId(normalized[0].id);
+          // Also save it to current preset slot so they are in sync
+          localStorage.setItem(`guild-parties-preset-${slot}`, JSON.stringify(normalized));
           return;
         }
       } catch (e) {
@@ -110,16 +145,20 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
     const initialParties: Party[] = Array.from({ length: 10 }, (_, i) => ({
       id: `party-${i + 1}`,
       name: DEFAULT_PARTY_NAMES[i] || `Party ${i + 1}`,
-      memberIds: ["", "", "", "", ""]
+      memberIds: ["", "", "", "", ""],
+      leaderId: null
     }));
     setParties(initialParties);
     setSelectedPartyId(initialParties[0].id);
   }, []);
 
   // Sync parties to local storage
-  const saveParties = (newParties: Party[]) => {
+  const saveParties = (newParties: Party[], slotVal?: number) => {
+    const slot = slotVal ?? selectedPresetSlot;
     setParties(newParties);
     localStorage.setItem("guild-parties", JSON.stringify(newParties));
+    localStorage.setItem(`guild-parties-preset-${slot}`, JSON.stringify(newParties));
+    setPresetUpdateTrigger(prev => prev + 1);
   };
 
   // Drag handles
@@ -299,7 +338,27 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
 
   // Standalone Export Parties
   const handleExportParties = () => {
-    const fileContent = JSON.stringify(parties, null, 2);
+    const activeParties = parties;
+    const presets: Record<string, any> = {};
+    [1, 2, 3].forEach(slotNum => {
+      const saved = localStorage.getItem(`guild-parties-preset-${slotNum}`);
+      if (saved) {
+        try {
+          presets[String(slotNum)] = JSON.parse(saved);
+        } catch {
+          presets[String(slotNum)] = null;
+        }
+      } else {
+        presets[String(slotNum)] = null;
+      }
+    });
+
+    const fileContent = JSON.stringify({
+      type: "guild-squads-package",
+      activeParties,
+      presets
+    }, null, 2);
+
     const blob = new Blob([fileContent], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -308,7 +367,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    onShowStatusBarMessage("Downloaded stand-alone squad specifications JSON.");
+    onShowStatusBarMessage("Downloaded active squads and all preset slots package JSON.");
   };
 
   // Standalone Import Parties
@@ -321,7 +380,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (Array.isArray(parsed)) {
-          // Validate structure has name, id, memberIds
+          // Legacy format (array of parties)
           const validated = parsed.slice(0, 10).map((item, idx) => {
             let ids = Array.isArray(item.memberIds) ? item.memberIds.filter((m: any) => typeof m === "string") : [];
             ids = ids.slice(0, 5);
@@ -329,25 +388,88 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
             return {
               id: item.id || `party-${idx + 1}`,
               name: item.name || `Party ${idx + 1}`,
-              memberIds: ids
+              memberIds: ids,
+              leaderId: typeof item.leaderId === "string" ? item.leaderId : null
             };
           });
 
-          // Fill up to 10 if imported array was smaller
           while (validated.length < 10) {
             const index = validated.length;
             validated.push({
               id: `party-${index + 1}`,
               name: `Party ${index + 1}`,
-              memberIds: ["", "", "", "", ""]
+              memberIds: ["", "", "", "", ""],
+              leaderId: null
             });
           }
 
           saveParties(validated);
           setSelectedPartyId(validated[0].id);
-          onShowStatusBarMessage("Successfully restored 10 guild parties from file!");
+          onShowStatusBarMessage("Successfully restored 10 active parties from file!");
+        } else if (parsed && typeof parsed === "object") {
+          // New format containing activeParties and presets
+          let activePartiesToLoad = parties;
+          const incomingActive = parsed.activeParties || parsed.parties;
+          if (Array.isArray(incomingActive)) {
+            activePartiesToLoad = incomingActive.slice(0, 10).map((item, idx) => {
+              let ids = Array.isArray(item.memberIds) ? item.memberIds.filter((m: any) => typeof m === "string") : [];
+              ids = ids.slice(0, 5);
+              while (ids.length < 5) ids.push("");
+              return {
+                id: item.id || `party-${idx + 1}`,
+                name: item.name || `Party ${idx + 1}`,
+                memberIds: ids,
+                leaderId: typeof item.leaderId === "string" ? item.leaderId : null
+              };
+            });
+            while (activePartiesToLoad.length < 10) {
+              const index = activePartiesToLoad.length;
+              activePartiesToLoad.push({
+                id: `party-${index + 1}`,
+                name: `Party ${index + 1}`,
+                memberIds: ["", "", "", "", ""],
+                leaderId: null
+              });
+            }
+          }
+
+          if (parsed.presets && typeof parsed.presets === "object") {
+            [1, 2, 3].forEach(slotNum => {
+              const slotPreset = parsed.presets[String(slotNum)] || parsed.presets[slotNum];
+              if (Array.isArray(slotPreset)) {
+                const validatedPreset = slotPreset.slice(0, 10).map((item, idx) => {
+                  let ids = Array.isArray(item.memberIds) ? item.memberIds.filter((m: any) => typeof m === "string") : [];
+                  ids = ids.slice(0, 5);
+                  while (ids.length < 5) ids.push("");
+                  return {
+                    id: item.id || `party-${idx + 1}`,
+                    name: item.name || `Party ${idx + 1}`,
+                    memberIds: ids,
+                    leaderId: typeof item.leaderId === "string" ? item.leaderId : null
+                  };
+                });
+                while (validatedPreset.length < 10) {
+                  const index = validatedPreset.length;
+                  validatedPreset.push({
+                    id: `party-${index + 1}`,
+                    name: `Party ${index + 1}`,
+                    memberIds: ["", "", "", "", ""],
+                    leaderId: null
+                  });
+                }
+                localStorage.setItem(`guild-parties-preset-${slotNum}`, JSON.stringify(validatedPreset));
+              } else {
+                localStorage.removeItem(`guild-parties-preset-${slotNum}`);
+              }
+            });
+          }
+
+          saveParties(activePartiesToLoad);
+          setSelectedPartyId(activePartiesToLoad[0].id);
+          setPresetUpdateTrigger(prev => prev + 1);
+          onShowStatusBarMessage("Successfully imported active squads and preset slots from package file!");
         } else {
-          onShowStatusBarMessage("Invalid file root structure. Must be JSON array.");
+          onShowStatusBarMessage("Invalid file root structure. Must be JSON.");
         }
       } catch (err) {
         console.error(err);
@@ -355,7 +477,6 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
       }
     };
     reader.readAsText(file);
-    // clear input
     e.target.value = "";
   };
 
@@ -368,6 +489,47 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
     }));
     saveParties(updated);
     onShowStatusBarMessage("Successfully disbanded all 10 squads.");
+  };
+
+  // Switch Preset Slot handler with automatic loading/clearing (snapshot style)
+  const handleSwitchPresetSlot = (slotNum: 1 | 2 | 3) => {
+    setSelectedPresetSlot(slotNum);
+    localStorage.setItem("guild-selected-preset-slot", String(slotNum));
+    const saved = localStorage.getItem(`guild-parties-preset-${slotNum}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const normalized = parsed.map(p => {
+            let ids = Array.isArray(p.memberIds) ? p.memberIds.filter(id => typeof id === "string") : [];
+            ids = ids.slice(0, 5);
+            while (ids.length < 5) ids.push("");
+            return {
+              ...p,
+              memberIds: ids,
+              leaderId: typeof p.leaderId === "string" ? p.leaderId : null
+            };
+          });
+          saveParties(normalized, slotNum);
+          setSelectedPartyId(normalized[0].id);
+          onShowStatusBarMessage(`Switched to Preset Slot ${slotNum} and loaded saved squads.`);
+        }
+      } catch (e) {
+        console.error(e);
+        onShowStatusBarMessage(`Preset Slot ${slotNum} contains corrupted files.`);
+      }
+    } else {
+      // If the target preset slot is empty, we set active squads to all blank (snapshot load behavior)
+      const initialParties: Party[] = Array.from({ length: 10 }, (_, i) => ({
+        id: `party-${i + 1}`,
+        name: DEFAULT_PARTY_NAMES[i] || `Party ${i + 1}`,
+        memberIds: ["", "", "", "", ""],
+        leaderId: null
+      }));
+      saveParties(initialParties, slotNum);
+      setSelectedPartyId(initialParties[0].id);
+      onShowStatusBarMessage(`Switched to Preset Slot ${slotNum} (Slot is Empty). Active squads cleared.`);
+    }
   };
 
   // Save preset handler
@@ -383,7 +545,16 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
     if (localStorage.getItem(key)) {
       localStorage.removeItem(key);
       setPresetUpdateTrigger(prev => prev + 1);
-      onShowStatusBarMessage(`Preset Slot ${selectedPresetSlot} cleared successfully.`);
+      
+      const initialParties: Party[] = Array.from({ length: 10 }, (_, i) => ({
+        id: `party-${i + 1}`,
+        name: DEFAULT_PARTY_NAMES[i] || `Party ${i + 1}`,
+        memberIds: ["", "", "", "", ""],
+        leaderId: null
+      }));
+      saveParties(initialParties);
+      setSelectedPartyId(initialParties[0].id);
+      onShowStatusBarMessage(`Preset Slot ${selectedPresetSlot} cleared. Active squads cleared.`);
     } else {
       onShowStatusBarMessage(`Preset Slot ${selectedPresetSlot} is already empty.`);
     }
@@ -416,7 +587,15 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
         onShowStatusBarMessage(`Preset Slot ${selectedPresetSlot} contains corrupted files.`);
       }
     } else {
-      onShowStatusBarMessage(`No saved squad settings found in Option Slot ${selectedPresetSlot}.`);
+      const initialParties: Party[] = Array.from({ length: 10 }, (_, i) => ({
+        id: `party-${i + 1}`,
+        name: DEFAULT_PARTY_NAMES[i] || `Party ${i + 1}`,
+        memberIds: ["", "", "", "", ""],
+        leaderId: null
+      }));
+      saveParties(initialParties);
+      setSelectedPartyId(initialParties[0].id);
+      onShowStatusBarMessage(`Preset Slot ${selectedPresetSlot} is empty. Active squads cleared.`);
     }
   };
 
@@ -512,7 +691,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
                   <button
                     key={slotNum}
                     type="button"
-                    onClick={() => setSelectedPresetSlot(slotNum as 1 | 2 | 3)}
+                    onClick={() => handleSwitchPresetSlot(slotNum as 1 | 2 | 3)}
                     className={`px-3 py-1 text-xs font-mono rounded font-bold transition-all cursor-pointer ${
                       isActive
                         ? "bg-indigo-600 text-white shadow-sm"
