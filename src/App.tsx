@@ -31,6 +31,7 @@ const GUILD_NAME_KEY = "etrian_guild_name_state";
 export default function App() {
   const [roster, setRoster] = useState<RosterMember[]>([]);
   const [selectedMember, setSelectedMember] = useState<RosterMember | null>(null);
+  const [showEditor, setShowEditor] = useState(false);
   const [originalFullData, setOriginalFullData] = useState<any>(null);
   const [guildName, setGuildName] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -147,6 +148,7 @@ export default function App() {
     setRoster(newRoster);
     saveToLocalStorage(newRoster, originalFullData);
     setSelectedMember(copy);
+    setShowEditor(true);
     showFeedback(`Cloned ${member.name}`);
   };
 
@@ -177,6 +179,7 @@ export default function App() {
       }
     };
     setSelectedMember(fresh);
+    setShowEditor(true);
     showFeedback("Initiated new recruit profile. Add details and click Save.");
   };
 
@@ -347,24 +350,26 @@ export default function App() {
           
           <div className="flex items-center space-x-3.5">
             <div className="w-10 h-10 bg-indigo-600 rounded flex items-center justify-center text-white font-black tracking-tighter text-sm shadow-[0_0_15px_rgba(79,70,229,0.3)]">
-              edf
+              GTMT
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-bold font-sans tracking-tight text-white uppercase sm:text-lg">
-                  Gargadusa Tower
+                  GT-Management Tool
                 </h1>
                 <span className="text-[10px] bg-indigo-600/10 text-indigo-400 border border-indigo-505/25 px-2 py-0.5 rounded font-mono">
                   v2.4.1
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5 font-sans">
-                Adventurer Extraction & Management Sandbox. Package updated JSON files or export XLS vectors.
+                    lmonSQZ42.
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+            <JsonImportExport onImportSuccess={handleImportSuccess} />
+
             {showClearConfirm ? (
               <div className="flex items-center gap-2 bg-rose-950/40 border border-rose-500/40 rounded px-3 py-1.5 transition-all">
                 <span className="text-xs text-rose-200 font-bold font-sans">Are you sure?</span>
@@ -418,101 +423,104 @@ export default function App() {
       {/* Main Container Content */}
       <main className="w-full max-w-[1920px] mx-auto px-4 sm:px-8 py-6 space-y-6">
         
-        {/* KPI Dashboard Indicators */}
-        <RosterSummary roster={activeRoster} guildName={guildName} />
-
-        {/* Tabs Control */}
-        <div id="navigation-tabs-container" className="flex items-end border-b border-white/10 overflow-x-auto scrollbar-none pt-2 -mb-[1px] gap-1">
-          <button
-            id="tab-btn-roster"
-            onClick={() => setActiveTab("roster")}
-            className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-t-lg border-t border-x cursor-pointer shrink-0 relative ${
-              activeTab === "roster"
-                ? "bg-[#0f0f0f] border-white/15 text-indigo-400 font-extrabold shadow-[0_-4px_18px_rgba(99,102,241,0.12)] z-10 translate-y-[1px]"
-                : "bg-black/35 border-transparent text-slate-450 hover:text-white hover:bg-black/50"
-            }`}
-          >
-            {activeTab === "roster" && (
-              <span className="absolute top-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-t-lg animate-pulse" />
+        {/* Tabs Control Row with Global Compact Stats on Right */}
+        <div className="sticky top-[73px] bg-[#0a0a0a] z-20 flex flex-col lg:flex-row lg:items-end lg:justify-between border-b border-white/10 pt-2 pb-2.5 lg:pb-0 gap-3">
+          <div id="navigation-tabs-container" className="flex items-end overflow-x-auto scrollbar-none gap-1 pt-2 -mb-[1px]">
+            <button
+              id="tab-btn-roster"
+              onClick={() => setActiveTab("roster")}
+              className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-t-lg border-t border-x cursor-pointer shrink-0 relative ${
+                activeTab === "roster"
+                  ? "bg-[#0f0f0f] border-white/15 text-indigo-400 font-extrabold shadow-[0_-4px_18px_rgba(99,102,241,0.12)] z-10 translate-y-[1px]"
+                  : "bg-black/35 border-transparent text-slate-450 hover:text-white hover:bg-black/50"
+              }`}
+            >
+              {activeTab === "roster" && (
+                <span className="absolute top-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-t-lg animate-pulse" />
+              )}
+              Guild Roster
+            </button>
+            
+            {activeTab !== "roster" && activeTab !== "potentialDiff" && (
+              <div className="w-[1px] h-3.5 bg-white/10 self-center shrink-0 opacity-40 mx-1" />
             )}
-            Guild Roster
-          </button>
+            
+            <button
+              id="tab-btn-potential-diff"
+              onClick={() => setActiveTab("potentialDiff")}
+              className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-t-lg border-t border-x cursor-pointer shrink-0 relative ${
+                activeTab === "potentialDiff"
+                  ? "bg-[#0f0f0f] border-white/15 text-indigo-400 font-extrabold shadow-[0_-4px_18px_rgba(99,102,241,0.12)] z-10 translate-y-[1px]"
+                  : "bg-black/35 border-transparent text-slate-450 hover:text-white hover:bg-black/50"
+              }`}
+            >
+              {activeTab === "potentialDiff" && (
+                <span className="absolute top-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-t-lg animate-pulse" />
+              )}
+              Potential Difference Analyzer
+            </button>
+
+            {activeTab !== "potentialDiff" && activeTab !== "party" && (
+              <div className="w-[1px] h-3.5 bg-white/10 self-center shrink-0 opacity-40 mx-1" />
+            )}
+
+            <button
+              id="tab-btn-party"
+              onClick={() => setActiveTab("party")}
+              className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-t-lg border-t border-x cursor-pointer shrink-0 relative ${
+                activeTab === "party"
+                  ? "bg-[#0f0f0f] border-white/15 text-indigo-400 font-extrabold shadow-[0_-4px_18px_rgba(99,102,241,0.12)] z-10 translate-y-[1px]"
+                  : "bg-black/35 border-transparent text-slate-450 hover:text-white hover:bg-black/50"
+              }`}
+            >
+              {activeTab === "party" && (
+                <span className="absolute top-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-t-lg animate-pulse" />
+              )}
+              Set Party
+            </button>
+
+            {activeTab !== "party" && activeTab !== "top10" && (
+              <div className="w-[1px] h-3.5 bg-white/10 self-center shrink-0 opacity-40 mx-1" />
+            )}
+
+            <button
+              id="tab-btn-top10"
+              onClick={() => setActiveTab("top10")}
+              className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-t-lg border-t border-x cursor-pointer shrink-0 relative ${
+                activeTab === "top10"
+                  ? "bg-[#0f0f0f] border-white/15 text-indigo-400 font-extrabold shadow-[0_-4px_18px_rgba(99,102,241,0.12)] z-10 translate-y-[1px]"
+                  : "bg-black/35 border-transparent text-slate-450 hover:text-white hover:bg-black/50"
+              }`}
+            >
+              {activeTab === "top10" && (
+                <span className="absolute top-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-t-lg animate-pulse" />
+              )}
+              Top 10 Potential
+            </button>
+
+            {activeTab !== "top10" && activeTab !== "listPartyDiff" && (
+              <div className="w-[1px] h-3.5 bg-white/10 self-center shrink-0 opacity-40 mx-1" />
+            )}
+
+            <button
+              id="tab-btn-list-party-diff"
+              onClick={() => setActiveTab("listPartyDiff")}
+              className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-t-lg border-t border-x cursor-pointer shrink-0 relative ${
+                activeTab === "listPartyDiff"
+                  ? "bg-[#0f0f0f] border-white/15 text-indigo-400 font-extrabold shadow-[0_-4px_18px_rgba(99,102,241,0.12)] z-10 translate-y-[1px]"
+                  : "bg-black/35 border-transparent text-slate-450 hover:text-white hover:bg-black/50"
+              }`}
+            >
+              {activeTab === "listPartyDiff" && (
+                <span className="absolute top-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-t-lg animate-pulse" />
+              )}
+              Spreadsheet - Difference
+            </button>
+          </div>
           
-          {activeTab !== "roster" && activeTab !== "potentialDiff" && (
-            <div className="w-[1px] h-3.5 bg-white/10 self-center shrink-0 opacity-40 mx-1" />
-          )}
-          
-          <button
-            id="tab-btn-potential-diff"
-            onClick={() => setActiveTab("potentialDiff")}
-            className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-t-lg border-t border-x cursor-pointer shrink-0 relative ${
-              activeTab === "potentialDiff"
-                ? "bg-[#0f0f0f] border-white/15 text-indigo-400 font-extrabold shadow-[0_-4px_18px_rgba(99,102,241,0.12)] z-10 translate-y-[1px]"
-                : "bg-black/35 border-transparent text-slate-450 hover:text-white hover:bg-black/50"
-            }`}
-          >
-            {activeTab === "potentialDiff" && (
-              <span className="absolute top-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-t-lg animate-pulse" />
-            )}
-            Potential Difference Analyzer
-          </button>
-
-          {activeTab !== "potentialDiff" && activeTab !== "party" && (
-            <div className="w-[1px] h-3.5 bg-white/10 self-center shrink-0 opacity-40 mx-1" />
-          )}
-
-          <button
-            id="tab-btn-party"
-            onClick={() => setActiveTab("party")}
-            className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-t-lg border-t border-x cursor-pointer shrink-0 relative ${
-              activeTab === "party"
-                ? "bg-[#0f0f0f] border-white/15 text-indigo-400 font-extrabold shadow-[0_-4px_18px_rgba(99,102,241,0.12)] z-10 translate-y-[1px]"
-                : "bg-black/35 border-transparent text-slate-450 hover:text-white hover:bg-black/50"
-            }`}
-          >
-            {activeTab === "party" && (
-              <span className="absolute top-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-t-lg animate-pulse" />
-            )}
-            Set Party
-          </button>
-
-          {activeTab !== "party" && activeTab !== "top10" && (
-            <div className="w-[1px] h-3.5 bg-white/10 self-center shrink-0 opacity-40 mx-1" />
-          )}
-
-          <button
-            id="tab-btn-top10"
-            onClick={() => setActiveTab("top10")}
-            className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-t-lg border-t border-x cursor-pointer shrink-0 relative ${
-              activeTab === "top10"
-                ? "bg-[#0f0f0f] border-white/15 text-indigo-400 font-extrabold shadow-[0_-4px_18px_rgba(99,102,241,0.12)] z-10 translate-y-[1px]"
-                : "bg-black/35 border-transparent text-slate-450 hover:text-white hover:bg-black/50"
-            }`}
-          >
-            {activeTab === "top10" && (
-              <span className="absolute top-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-t-lg animate-pulse" />
-            )}
-            Top 10 Potential
-          </button>
-
-          {activeTab !== "top10" && activeTab !== "listPartyDiff" && (
-            <div className="w-[1px] h-3.5 bg-white/10 self-center shrink-0 opacity-40 mx-1" />
-          )}
-
-          <button
-            id="tab-btn-list-party-diff"
-            onClick={() => setActiveTab("listPartyDiff")}
-            className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-t-lg border-t border-x cursor-pointer shrink-0 relative ${
-              activeTab === "listPartyDiff"
-                ? "bg-[#0f0f0f] border-white/15 text-indigo-400 font-extrabold shadow-[0_-4px_18px_rgba(99,102,241,0.12)] z-10 translate-y-[1px]"
-                : "bg-black/35 border-transparent text-slate-450 hover:text-white hover:bg-black/50"
-            }`}
-          >
-            {activeTab === "listPartyDiff" && (
-              <span className="absolute top-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-t-lg animate-pulse" />
-            )}
-            Spreadsheet - Difference
-          </button>
+          <div className="mb-0.5 lg:-mb-[1px] shrink-0 self-start lg:self-end">
+            <RosterSummary roster={activeRoster} guildName={guildName} />
+          </div>
         </div>
 
         {/* Core Workspace Sections */}
@@ -520,29 +528,36 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
             {/* Left Grid: Table + Import Block */}
-            <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+            <div className={`${showEditor ? "lg:col-span-7 xl:col-span-8" : "lg:col-span-12"} space-y-6`}>
               
               <RosterTable 
                 roster={activeRoster}
                 selectedMemberId={selectedMember?.id || null}
                 onSelectMember={handleSelectMember}
+                onDoubleClickMember={(member) => {
+                  setSelectedMember(member);
+                  setShowEditor(true);
+                }}
                 onDeleteMember={handleDeleteMember}
                 onDuplicateMember={handleDuplicateMember}
                 onAddNewMember={handleAddNewMember}
               />
 
-              <JsonImportExport onImportSuccess={handleImportSuccess} />
-
             </div>
 
             {/* Right Grid: Detailed Characteristic Sheet */}
-            <div className="lg:col-span-5 xl:col-span-4 h-full">
-              <RosterEditor 
-                member={selectedMember}
-                onSave={handleSaveMember}
-                onClose={() => setSelectedMember(null)}
-              />
-            </div>
+            {showEditor && (
+              <div className="lg:col-span-5 xl:col-span-4 h-full">
+                <RosterEditor 
+                  member={selectedMember}
+                  onSave={handleSaveMember}
+                  onClose={() => {
+                    setSelectedMember(null);
+                    setShowEditor(false);
+                  }}
+                />
+              </div>
+            )}
 
           </div>
         )}
@@ -551,7 +566,10 @@ export default function App() {
           <PotentialDifferenceAnalyzer
             roster={activeRoster}
             selectedMemberId={selectedMember?.id || null}
-            onSelectMember={handleSelectMember}
+            onSelectMember={(member) => {
+              handleSelectMember(member);
+              setShowEditor(true);
+            }}
             onUpdateMember={handleSaveMember}
             onClose={() => setActiveTab("roster")}
           />
@@ -570,6 +588,7 @@ export default function App() {
             onSelectMember={(member) => {
               handleSelectMember(member);
               setActiveTab("roster");
+              setShowEditor(true);
             }}
             onClose={() => setActiveTab("roster")}
           />
@@ -581,6 +600,7 @@ export default function App() {
             onSelectMember={(member) => {
               handleSelectMember(member);
               setActiveTab("roster");
+              setShowEditor(true);
             }}
             onClose={() => setActiveTab("roster")}
           />

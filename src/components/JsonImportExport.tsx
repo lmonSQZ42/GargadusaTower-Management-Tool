@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Upload, FileText, CheckCircle2, ShieldAlert, FileCode } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Upload, CheckCircle2, ShieldAlert } from "lucide-react";
 import { extractRosterRobust } from "../parser";
 import { RosterMember } from "../types";
 
@@ -8,12 +8,21 @@ interface JsonImportExportProps {
 }
 
 export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImportSuccess }) => {
-  const [pasteText, setPasteText] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [parseStatus, setParseStatus] = useState<{
     status: "idle" | "success" | "error";
     message: string;
+    details?: string;
   }>({ status: "idle", message: "" });
+
+  useEffect(() => {
+    if (parseStatus.status !== "idle") {
+      const timer = setTimeout(() => {
+        setParseStatus({ status: "idle", message: "" });
+      }, parseStatus.status === "success" ? 4000 : 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [parseStatus.status]);
 
   const handleImport = (content: string) => {
     try {
@@ -23,24 +32,24 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImportSucc
 
       const result = extractRosterRobust(content);
       if (result.roster.length === 0) {
-        throw new Error("Parsed successfully but found 0 adventurers.");
+        throw new Error("Found 0 adventurers.");
       }
 
       onImportSuccess(result.roster, result.fullData, result.guildName);
       setParseStatus({
         status: "success",
-        message: `Guild accepted! Loaded ${result.roster.length} members successfully.`,
+        message: "Import Success!",
+        details: `${result.roster.length} members loaded`,
       });
-      setPasteText("");
     } catch (err: any) {
       setParseStatus({
         status: "error",
-        message: err.message || "Failed to parse. Please check JSON syntax.",
+        message: "Import Failed",
+        details: err.message || "Invalid syntax",
       });
     }
   };
 
-  // Drag and drop events handlers
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -64,7 +73,7 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImportSucc
         handleImport(text);
       };
       reader.onerror = () => {
-         setParseStatus({ status: "error", message: "Failed to read file." });
+        setParseStatus({ status: "error", message: "Import Failed", details: "Failed to read file." });
       };
       reader.readAsText(file);
     }
@@ -82,185 +91,78 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImportSucc
     }
   };
 
-  const loadDemoPayload = (type: "standard" | "dirty") => {
-    if (type === "standard") {
-      const demo = {
-        gameState: {
-          roster: [
-            {
-              name: "Soren Dragonheart",
-              type: "adventurer",
-              class: "Imperial",
-              classRarity: "Epic",
-              level: 48,
-              age: 27,
-              potential: 82,
-              potentialCeiling: 90,
-              roles: ["attacker", "defender"],
-              retiredAt: null,
-              categoryCeilings: { physical: 90, vitality: 80, combat: 90 },
-              stats: { str: 84, vit: 78, atk: 88, def: 80 }
-            },
-            {
-              name: "Elder Garl",
-              type: "adventurer",
-              class: "Bushi",
-              classRarity: "Rare",
-              level: 30,
-              age: 58,
-              potential: 60,
-              potentialCeiling: 70,
-              roles: ["attacker"],
-              retiredAt: { age: 50 }, // Retired!
-              categoryCeilings: { physical: 80, heroic: 70 },
-              stats: { str: 72, hro: 65 }
-            }
-          ]
-        }
-      };
-      setPasteText(JSON.stringify(demo, null, 2));
-    } else {
-      // Dirty JSON with debugging headers and a trailing comma! Excellent test of Attempt 2 matching
-      const dirtyDemo = `--- COLOG GAME ENGINE DEBUG LOGS START ---
-START OF FILE: edf-edited2.json
-{
-  "gameState": {
-    "saveSlot": 4,
-    "roster": [
-      {
-        "name": "Eldrin the Poisoner",
-        "type": "adventurer",
-        "class": "Nightseeker",
-        "classRarity": "Legendary",
-        "level": 55,
-        "age": 22,
-        "potential": 94,
-        "potentialCeiling": 100,
-        "roles": ["attacker", "disabler"],
-        "retiredAt": null,
-        "categoryCeilings": {
-          "physical": 95,
-          "vitality": 70,
-          "mental": 80
-        },
-        "stats": {
-          "str": 90,
-          "dex": 94,
-          "spd": 92
-        }
-      },
-    ]
-  }
-}
-END OF FILE --- WRITTEN OK ---`;
-      setPasteText(dirtyDemo);
+  // Render different visual states within a compact button dimension
+  const renderContent = () => {
+    if (dragActive) {
+      return (
+        <>
+          <Upload className="w-4 h-4 text-indigo-400 animate-bounce" />
+          <div className="text-left font-sans">
+            <span className="block font-bold text-[10px] uppercase tracking-wider text-indigo-400">Release File</span>
+            <span className="block text-[8px] text-indigo-300/80 leading-none mt-0.5">Drop to Import</span>
+          </div>
+        </>
+      );
     }
+
+    if (parseStatus.status === "success") {
+      return (
+        <>
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 animate-pulse" />
+          <div className="text-left font-sans">
+            <span className="block font-bold text-[10px] uppercase tracking-wider text-emerald-400">{parseStatus.message}</span>
+            <span className="block text-[8px] text-emerald-500/80 leading-none mt-0.5">{parseStatus.details}</span>
+          </div>
+        </>
+      );
+    }
+
+    if (parseStatus.status === "error") {
+      return (
+        <>
+          <ShieldAlert className="w-4 h-4 text-rose-400" />
+          <div className="text-left font-sans" title={parseStatus.details}>
+            <span className="block font-bold text-[10px] uppercase tracking-wider text-rose-400">{parseStatus.message}</span>
+            <span className="block text-[8px] text-rose-500/80 leading-none mt-0.5 max-w-[200px] truncate">{parseStatus.details}</span>
+          </div>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <Upload className="w-4 h-4 text-indigo-400" />
+        <div className="text-left font-sans">
+          <span className="block font-bold text-[10px] uppercase tracking-wider text-slate-200">Import Guild JSON</span>
+          <span className="block text-[8px] text-slate-500 leading-none mt-0.5">Drop here or Click</span>
+        </div>
+      </>
+    );
+  };
+
+  const borderStateClass = () => {
+    if (dragActive) return "border-indigo-505 bg-indigo-500/10 text-indigo-300 scale-[1.02] shadow-[0_0_10px_rgba(99,102,241,0.1)]";
+    if (parseStatus.status === "success") return "border-emerald-500/30 bg-emerald-500/5 text-emerald-450 shadow-[0_0_10px_rgba(16,185,129,0.05)]";
+    if (parseStatus.status === "error") return "border-rose-500/30 bg-rose-500/5 text-rose-450";
+    return "border-white/10 bg-black/20 hover:border-white/20 hover:bg-black/30 text-slate-300";
   };
 
   return (
-    <div className="bg-[#0f0f0f] border border-white/10 rounded-lg p-4 shadow-lg space-y-4">
-      <div className="flex items-center space-x-2">
-        <Upload className="w-4 h-4 text-indigo-400" />
-        <h4 className="text-slate-200 font-bold font-sans text-xs uppercase tracking-widest">
-          Import Guild Roster File (.json)
-        </h4>
-      </div>
-
-      <p className="text-slate-400 text-xs leading-relaxed">
-        Upload or paste your <code className="font-mono text-slate-300 bg-black/50 border border-white/5 px-1 py-0.5 rounded text-[10px]">edf-edited2.json</code>. The robust parser automatically extracts roster vectors, bypassing game engine logs and patching minor trailing comma inconsistencies.
-      </p>
-
-      {/* Drag & Drop Zone */}
-      <div
-        onDragEnter={handleDrag}
-        onDragOver={handleDrag}
-        onDragLeave={handleDrag}
-        onDrop={handleDrop}
-        className={`border border-dashed rounded p-6 text-center transition-all cursor-pointer relative ${
-          dragActive
-            ? "border-indigo-500 bg-indigo-505/5 text-indigo-300 scale-[1.01]"
-            : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-black/30 text-slate-400"
-        }`}
-      >
-        <input
-          type="file"
-          id="file-upload-input"
-          accept=".json"
-          onChange={handleFileInput}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        />
-        <div className="flex flex-col items-center space-y-2 pointer-events-none">
-          <FileText className="w-8 h-8 text-slate-500" />
-          <div>
-            <span className="text-indigo-450 hover:text-indigo-400 font-semibold text-xs">
-              Click to choose a JSON roster file
-            </span>
-            <span className="text-slate-500 text-xs"> or drag & drop it here</span>
-          </div>
-          <p className="text-[10px] text-slate-600">JSON syntax format</p>
-        </div>
-      </div>
-
-      {/* Paste Area Toggle */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-[11px] font-mono text-[#8c8c8c]">
-          <span>OR PASTE RAW DATA:</span>
-          <div className="space-x-1.5 flex select-none font-bold">
-            <button
-              type="button"
-              onClick={() => loadDemoPayload("standard")}
-              className="text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
-            >
-              [Demo Roster]
-            </button>
-            <span className="text-slate-700">|</span>
-            <button
-              type="button"
-              onClick={() => loadDemoPayload("dirty")}
-              className="text-rose-400 hover:text-rose-350 transition-colors cursor-pointer"
-              title="Test the robust bracket-matching regex fallback!"
-            >
-              [Dirty Log Demo]
-            </button>
-          </div>
-        </div>
-
-        <textarea
-          rows={3}
-          value={pasteText}
-          onChange={(e) => setPasteText(e.target.value)}
-          placeholder="Paste roster state or raw logs here..."
-          className="w-full bg-[#0a0a0a] text-slate-305 font-mono text-[11px] border border-white/10 hover:border-white/20 focus:outline-none focus:border-indigo-500 p-2.5 rounded focus:ring-1 focus:ring-indigo-500 placeholder-slate-600 h-28 resize-y"
-        />
-
-        <button
-          type="button"
-          onClick={() => handleImport(pasteText)}
-          disabled={!pasteText.trim()}
-          className="w-full py-2 bg-white/5 hover:bg-white/10 disabled:opacity-45 disabled:hover:bg-white/5 text-slate-200 font-bold font-sans text-xs rounded border border-white/5 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-        >
-          <FileCode className="w-4 h-4 text-indigo-400" />
-          Parse & Lock Roster
-        </button>
-      </div>
-
-      {/* Feedbacks */}
-      {parseStatus.status !== "idle" && (
-        <div
-          className={`p-3 rounded border flex items-start space-x-2 text-xs leading-normal animate-fade-in ${
-            parseStatus.status === "success"
-              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-              : "bg-rose-500/10 border-rose-500/20 text-rose-400"
-          }`}
-        >
-          {parseStatus.status === "success" ? (
-            <CheckCircle2 className="w-4 h-4 mt-0.5 min-w-[16px]" />
-          ) : (
-            <ShieldAlert className="w-4 h-4 mt-0.5 min-w-[16px]" />
-          )}
-          <span>{parseStatus.message}</span>
-        </div>
-      )}
+    <div
+      onDragEnter={handleDrag}
+      onDragOver={handleDrag}
+      onDragLeave={handleDrag}
+      onDrop={handleDrop}
+      className={`relative border border-dashed rounded px-3.5 py-1.5 flex items-center gap-2.5 h-[38px] w-[260px] transition-all cursor-pointer select-none ${borderStateClass()}`}
+    >
+      <input
+        type="file"
+        id="header-roster-file-upload"
+        accept=".json"
+        onChange={handleFileInput}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 font-sans"
+      />
+      {renderContent()}
     </div>
   );
 };

@@ -19,6 +19,7 @@ interface RosterTableProps {
   roster: RosterMember[];
   selectedMemberId: string | null;
   onSelectMember: (member: RosterMember) => void;
+  onDoubleClickMember?: (member: RosterMember) => void;
   onDeleteMember: (id: string) => void;
   onDuplicateMember: (member: RosterMember) => void;
   onAddNewMember: () => void;
@@ -211,6 +212,7 @@ export const RosterTable: React.FC<RosterTableProps> = ({
   roster,
   selectedMemberId,
   onSelectMember,
+  onDoubleClickMember,
   onDeleteMember,
   onDuplicateMember,
   onAddNewMember,
@@ -675,7 +677,7 @@ export const RosterTable: React.FC<RosterTableProps> = ({
 
   // Helper row positioning leftOffset styles
   const getRowStickyLeftStyle = (colKey: string) => {
-    const isSticky = colKey === "party" || colKey === "name";
+    const isSticky = colKey === "party" || colKey === "name" || colKey === "job";
     if (!isSticky) return {};
     const idx = metaOrder.indexOf(colKey);
     let leftOffset = 0;
@@ -692,7 +694,7 @@ export const RosterTable: React.FC<RosterTableProps> = ({
   };
 
   const getRow2HeaderStyle = (colKey: string) => {
-    const isSticky = colKey === "party" || colKey === "name";
+    const isSticky = colKey === "party" || colKey === "name" || colKey === "job";
     if (!isSticky) {
       return { position: "sticky" as const, top: 32, zIndex: 20 };
     }
@@ -707,7 +709,7 @@ export const RosterTable: React.FC<RosterTableProps> = ({
       position: "sticky" as const,
       top: 32,
       left: leftOffset,
-      zIndex: 40,
+      zIndex: 43,
     };
   };
 
@@ -716,17 +718,16 @@ export const RosterTable: React.FC<RosterTableProps> = ({
     const isCellHighlighted = highlightedCell?.rowId === member.id && highlightedCell?.colKey === colKey;
     const isColHighlighted = highlightedColKey === colKey;
 
-    const isParty = colKey === "party";
-    const isName = colKey === "name";
-    const isSticky = isParty || isName;
+    const stickyKeys = ["party", "name", "job"];
+    const isSticky = stickyKeys.includes(colKey);
 
-    const partyIdx = metaOrder.indexOf("party");
-    const nameIdx = metaOrder.indexOf("name");
+    const stickyIndices = stickyKeys.map(k => metaOrder.indexOf(k)).filter(idx => idx >= 0);
+    const maxStickyIdx = stickyIndices.length > 0 ? Math.max(...stickyIndices) : -1;
+    const isRightmostFrozen = isSticky && metaOrder.indexOf(colKey) === maxStickyIdx;
 
     let stickyStyle = getRowStickyLeftStyle(colKey);
 
     const isRowHighlighted = highlightedRowId === member.id;
-    const isRightmostFrozen = isSticky && colKey === (partyIdx > nameIdx ? "party" : "name");
 
     let stickyBgClass = "";
     if (isSticky) {
@@ -796,7 +797,8 @@ export const RosterTable: React.FC<RosterTableProps> = ({
           <td 
             key="job" 
             onClick={(e) => handleCellClick(member.id, "job", e)}
-            className={`px-3 border-r border-white/5 truncate text-slate-400 text-xs align-middle cursor-pointer transition-all ${highlightStyleClass}`}
+            style={stickyStyle}
+            className={`px-3 truncate text-slate-400 text-xs align-middle cursor-pointer transition-all ${stickyBgClass} ${borderStyleClass} ${highlightStyleClass}`}
           >
             {member.class || "--"}
           </td>
@@ -885,7 +887,10 @@ export const RosterTable: React.FC<RosterTableProps> = ({
           >
             <div className="flex items-center justify-center space-x-1 font-mono">
               <button
-                onClick={() => onSelectMember(member)}
+                onClick={() => {
+                  onSelectMember(member);
+                  onDoubleClickMember?.(member);
+                }}
                 title="Edit Details"
                 className="p-1 text-slate-400 hover:text-indigo-400 hover:bg-white/5 rounded transition-colors cursor-pointer"
               >
@@ -1147,8 +1152,13 @@ export const RosterTable: React.FC<RosterTableProps> = ({
                   {metaOrder.map((colKey, index) => {
                     if (colKey === "ceiling" || colKey === "overallCurrent") return null;
 
-                    const isSticky = colKey === "party" || colKey === "name";
-                    const isRightmostFrozen = isSticky && colKey === (metaOrder.indexOf("party") > metaOrder.indexOf("name") ? "party" : "name");
+                    const stickyKeys = ["party", "name", "job"];
+                    const isSticky = stickyKeys.includes(colKey);
+
+                    const stickyIndices = stickyKeys.map(k => metaOrder.indexOf(k)).filter(idx => idx >= 0);
+                    const maxStickyIdx = stickyIndices.length > 0 ? Math.max(...stickyIndices) : -1;
+                    const isRightmostFrozen = isSticky && metaOrder.indexOf(colKey) === maxStickyIdx;
+
                     const borderStyle = isRightmostFrozen 
                       ? "border-r-2 border-slate-600/70 shadow-[3px_0_5px_rgba(0,0,0,0.4)]" 
                       : "border-r border-white/5";
@@ -1163,7 +1173,7 @@ export const RosterTable: React.FC<RosterTableProps> = ({
                       <th 
                         key={colKey} 
                         colSpan={colSpanVal}
-                        style={{ ...stickyStyle, width: isPotentialGroup ? undefined : `${colWidths[colKey]}px`, position: isSticky ? "sticky" : "static", top: 0, zIndex: isSticky ? 35 : 10 }}
+                        style={{ ...stickyStyle, width: isPotentialGroup ? undefined : `${colWidths[colKey]}px`, position: "sticky" as const, top: 0, zIndex: isSticky ? 45 : 20 }}
                         className={`py-1 px-3 text-[10px] uppercase font-mono tracking-wider text-center border-b border-white/15 ${bgClass} ${borderStyle} truncate select-none`}
                       >
                         {colKey === "party" 
@@ -1215,8 +1225,12 @@ export const RosterTable: React.FC<RosterTableProps> = ({
                   {metaOrder.map((colKey) => {
                     const info = META_COLUMNS_INFO[colKey] || { label: colKey.toUpperCase(), borderClass: "border-r border-white/5", defaultSortField: colKey };
                     const isSorted = sortColumn === colKey;
-                    const isSticky = colKey === "party" || colKey === "name";
-                    const isRightmostFrozen = isSticky && colKey === (metaOrder.indexOf("party") > metaOrder.indexOf("name") ? "party" : "name");
+                    const stickyKeys = ["party", "name", "job"];
+                    const isSticky = stickyKeys.includes(colKey);
+
+                    const stickyIndices = stickyKeys.map(k => metaOrder.indexOf(k)).filter(idx => idx >= 0);
+                    const maxStickyIdx = stickyIndices.length > 0 ? Math.max(...stickyIndices) : -1;
+                    const isRightmostFrozen = isSticky && metaOrder.indexOf(colKey) === maxStickyIdx;
                     const isColHighlighted = highlightedColKey === colKey;
 
                     const stickyStyle = getRow2HeaderStyle(colKey);
@@ -1350,6 +1364,9 @@ export const RosterTable: React.FC<RosterTableProps> = ({
                         setHighlightedColKey(null);
                         setHighlightedCell(null);
                         onSelectMember(member);
+                      }}
+                      onDoubleClick={() => {
+                        onDoubleClickMember?.(member);
                       }}
                       style={{ height: `${rowHeight}px` }}
                       className={`transition-all cursor-pointer group ${
