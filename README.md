@@ -10,7 +10,7 @@
 
 ## Feature tab
 1. ~~Roster Editor~~
-	- ~~Manually edit your adventurer roster (**USE AT YOUR OWN RISK!!!**). **BROKE**~~
+	- ~~Manually edit your adventurer roster (**USE AT YOUR OWN RISK!!!**).~~ **BROKE**
 2. Party Management:
 2. Set Party 
 	- Create, save, and load specific party setups.
@@ -27,6 +27,3 @@ Export roster only to .xlsx.
 ## How to use
 Load json file
 - Locate savefiles usually in "C:\Users\"username"\AppData\Roaming\gargadusa\saves" (win 10) & import/drag.
-
-
-## Run Locally
