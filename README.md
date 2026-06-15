@@ -9,8 +9,8 @@
 
 
 ## Feature tab
-1. ~~Roster Editor
-	- Manually edit your adventurer roster (**USE AT YOUR OWN RISK!!!**).~~ **BROKE**
+1. ~~Roster Editor~~
+	- ~~Manually edit your adventurer roster (**USE AT YOUR OWN RISK!!!**). **BROKE**~~
 2. Party Management:
 2. Set Party 
 	- Create, save, and load specific party setups.
