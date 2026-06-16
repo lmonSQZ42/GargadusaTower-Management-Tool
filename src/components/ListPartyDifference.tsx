@@ -200,10 +200,10 @@ const META_COLUMNS_INFO: Record<string, { label: string; borderClass: string; de
   party: { label: "Party", borderClass: "border-r border-white/5", defaultSortField: "party" },
   name: { label: "Name", borderClass: "border-r border-white/5", defaultSortField: "name" },
   job: { label: "Job Class", borderClass: "border-r border-white/5", defaultSortField: "job" },
-  roles: { label: "Roles", borderClass: "border-r border-white/5", defaultSortField: "roles" },
   potential: { label: "Grade", borderClass: "border-r border-white/5 text-center", defaultSortField: "potential" },
   ceiling: { label: "Ceiling", borderClass: "border-r border-white/10 text-center", defaultSortField: "ceiling" },
   overallCurrent: { label: "Current OVR", borderClass: "border-r border-white/10 text-center", defaultSortField: "overallCurrent" },
+  delta: { label: "DELTA", borderClass: "border-r border-white/10 text-center", defaultSortField: "delta" },
 };
 
 interface ListPartyDifferenceProps {
@@ -364,25 +364,14 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
   }); // standard cell height in px
 
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem("sheet-col-widths");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === "object") {
-          return parsed;
-        }
-      } catch (e) {
-        console.error("Failed to parse sheet-col-widths", e);
-      }
-    }
     const defaults: Record<string, number> = {
       party: 125,
       name: 145,
       job: 120,
-      roles: 145,
       potential: 85,
       ceiling: 85,
       overallCurrent: 90,
+      delta: 85,
     };
     // Include the 23 stats
     STAT_GROUPS.forEach(g => {
@@ -390,6 +379,18 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
         defaults[s.key] = 52;
       });
     });
+
+    const saved = localStorage.getItem("sheet-col-widths");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") {
+          return { ...defaults, ...parsed };
+        }
+      } catch (e) {
+        console.error("Failed to parse sheet-col-widths", e);
+      }
+    }
     return defaults;
   });
 
@@ -431,10 +432,10 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
     "party",
     "name",
     "job",
-    "roles",
     "potential",
     "ceiling",
-    "overallCurrent"
+    "overallCurrent",
+    "delta"
   ]);
 
   const [groupOrder, setGroupOrder] = useState<string[]>([
@@ -562,9 +563,6 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
     if (col === "job") {
       return member.class || "";
     }
-    if (col === "roles") {
-      return (member.roles || []).join(", ");
-    }
     if (col === "potential") {
       return member.potential ?? 0;
     }
@@ -573,6 +571,9 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
     }
     if (col === "overallCurrent") {
       return getMemberCurrentOvr(member);
+    }
+    if (col === "delta") {
+      return (member.potentialCeiling ?? 0) - getMemberCurrentOvr(member);
     }
     // Specific primary stats
     const statKey = col as keyof Stats;
@@ -600,10 +601,9 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
 
     const nameMatch = (member.name || "").toLowerCase().includes(query);
     const classMatch = (member.class || "").toLowerCase().includes(query);
-    const rolesMatch = (member.roles || []).some(r => r.toLowerCase().includes(query));
     const partyMatch = memberPartyName.toLowerCase().includes(query);
 
-    return nameMatch || classMatch || rolesMatch || partyMatch;
+    return nameMatch || classMatch || partyMatch;
   });
 
   // Sort matched entries
@@ -739,20 +739,6 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
             {member.class || "--"}
           </td>
         );
-      case "roles":
-        return (
-          <td 
-            id={`cell-roles-${member.id}`} 
-            key="roles" 
-            onClick={(e) => handleCellClick(member.id, "roles", e)}
-            className={`px-3 border-r border-white/5 truncate text-slate-455 text-[10px] align-middle cursor-pointer transition-all ${highlightStyleClass}`}
-          >
-            {member.roles && member.roles.length > 0 
-              ? member.roles.join(", ") 
-              : <span className="italic text-slate-600">None</span>
-            }
-          </td>
-        );
       case "potential":
         return (
           <td 
@@ -788,6 +774,20 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
             {getMemberCurrentOvr(member) || "--"}
           </td>
         );
+      case "delta":
+        const ceilValue = member.potentialCeiling;
+        const ovrValue = getMemberCurrentOvr(member);
+        const deltaValue = (ceilValue !== undefined && ceilValue !== null) ? (ceilValue - ovrValue) : null;
+        return (
+          <td 
+            id={`cell-delta-${member.id}`} 
+            key="delta" 
+            onClick={(e) => handleCellClick(member.id, "delta", e)}
+            className={`px-3 border-r border-[#8faaec]/10 text-center font-mono font-bold text-indigo-400 align-middle cursor-pointer transition-all ${highlightStyleClass}`}
+          >
+            {deltaValue !== null ? (deltaValue > 0 ? `+${deltaValue}` : deltaValue) : "--"}
+          </td>
+        );
       default:
         return null;
     }
@@ -796,151 +796,182 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
   return (
     <div id="list-party-difference-view" className="bg-[#0f0f0f] border border-white/10 rounded-lg p-4 sm:p-6 shadow-xl space-y-5 font-sans">
       
-      {/* Header section */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-        <div className="space-y-1">
-          <div className="flex items-center space-x-2">
-            <Table className="w-5 h-5 text-indigo-400" />
-            <h3 className="text-sm font-bold text-slate-100 uppercase tracking-widest">
-              Spreadsheet - Difference
-            </h3>
-          </div>
-          <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-            A comprehensive, active spreadsheet workspace tracking all adventurers. 
-            <span className="text-indigo-400 block mt-1 font-semibold">
-              💡 Controls: 1-click to select and highlight row/column or single cell. 2-clicks (Double click) on column headers to sort rows. Double-click rows to Edit adventurer.
-            </span>
-          </p>
-        </div>
-
-        {onClose && (
+      {/* Compact, Static Party Filter Header */}
+      <div className="bg-[#0c0c0e]/95 border-b border-white/10 p-3 flex flex-col items-start gap-2.5 shadow-md rounded-lg mb-4">
+        {/* Row 1: Label and General Filters */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-widest mr-1 flex items-center gap-1">
+            <SlidersHorizontal className="w-3 h-3 text-indigo-400 shrink-0" />
+            Party Filter:
+          </span>
+          
           <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 hover:text-white text-slate-300 border border-white/10 hover:border-white/20 rounded transition-colors cursor-pointer shrink-0"
+            onClick={() => setSelectedPartyFilter("all")}
+            className={`px-2.5 py-1 text-xs font-mono rounded transition-all cursor-pointer font-bold ${
+              selectedPartyFilter === "all"
+                ? "bg-indigo-600 border border-indigo-500 text-white shadow-sm"
+                : "bg-white/5 border border-white/10 hover:bg-white/10 text-slate-355"
+            }`}
           >
-            Back to Sandbox
+            All
           </button>
-        )}
-      </div>
 
-      {/* Control Filters & Spacing Area */}
-      <div className="flex flex-wrap items-center gap-4 bg-black/45 p-4 rounded-lg border border-white/5">
-        
-        {/* Search */}
-        <div className="min-w-[200px] flex-1 relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search adventurers, job, roles..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#0a0a0a] border border-white/10 rounded pl-9 pr-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
-          />
+          {(() => {
+            const isSelected = selectedPartyFilter === "unassigned";
+            const unassignedCount = roster.filter(m => {
+              if (m.type !== "adventurer") return false;
+              if (m.retiredAt !== null && m.retiredAt !== undefined) return false;
+              const hasParty = parties.some(p => p.memberIds?.includes(m.id));
+              return !hasParty;
+            }).length;
+            return (
+              <button
+                onClick={() => setSelectedPartyFilter("unassigned")}
+                className={`px-2.5 py-1 text-xs rounded transition-all cursor-pointer flex items-center gap-1 font-bold ${
+                  isSelected
+                    ? "bg-indigo-600 text-white shadow-sm border border-indigo-500 font-bold"
+                    : "bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300"
+                }`}
+              >
+                <span>Unassigned</span>
+                <span className={`text-[9px] px-1 rounded font-mono font-bold ${
+                  isSelected ? "bg-indigo-700 text-indigo-100" : "bg-white/10 text-slate-400"
+                }`}>
+                  {unassignedCount}
+                </span>
+              </button>
+            );
+          })()}
         </div>
 
-        {/* Party Filter */}
-        <div className="flex items-center space-x-2 min-w-[150px]">
-          <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-          <span className="text-[10px] font-mono text-slate-500 uppercase shrink-0">Party:</span>
-          <select
-            value={selectedPartyFilter}
-            onChange={(e) => setSelectedPartyFilter(e.target.value)}
-            className="w-full bg-[#0a0a0a] border border-white/10 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer"
-          >
-            <option value="all">All Adventurers</option>
-            <option value="unassigned">Unassigned Only</option>
-            {parties.map(p => (
-              <option key={p.id} value={p.name}>{p.name}</option>
-            ))}
-          </select>
+        {/* Row 2: Parties 1-10 */}
+        <div className="flex flex-wrap items-center gap-1.5 w-full">
+          {parties.map((p) => {
+            const isSelected = selectedPartyFilter === p.name;
+            const count = roster.filter(m => m.type === "adventurer" && (m.retiredAt === null || m.retiredAt === undefined) && p.memberIds?.includes(m.id)).length;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setSelectedPartyFilter(p.name)}
+                className={`px-2.5 py-1 text-xs rounded transition-all cursor-pointer flex items-center gap-1 text-[11px] font-sans ${
+                  isSelected
+                    ? "bg-indigo-600 text-white shadow-sm border border-indigo-500 font-semibold"
+                    : "bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300"
+                }`}
+              >
+                <span>{p.name}</span>
+                <span className={`text-[9px] px-1 rounded font-mono font-bold ${
+                  isSelected ? "bg-indigo-700 text-indigo-100" : "bg-white/10 text-slate-400"
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* View Limit Filter */}
-        <div className="flex items-center space-x-2 min-w-[130px]">
-          <Table className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-          <span className="text-[10px] font-mono text-slate-500 uppercase shrink-0">Rows:</span>
-          <select
-            value={viewLimit}
-            onChange={(e) => setViewLimit(e.target.value)}
-            className="w-full bg-[#0a0a0a] border border-white/10 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer font-sans"
-          >
-            <option value="20">20 Rows</option>
-            <option value="60">60 Rows</option>
-            <option value="all">All Rows</option>
-          </select>
-        </div>
+        {/* Row 3: Control Filters & Spacing Area (Inside Sticky Header Container) */}
+        <div className="flex flex-wrap items-center gap-4 bg-black/45 p-2 sm:p-2.5 rounded-lg border border-white/5 w-full mt-1">
+          {/* Search */}
+          <div className="min-w-[200px] flex-1 relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search adventurers, job classes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[#0a0a0a] border border-white/10 rounded pl-9 pr-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
+            />
+          </div>
 
-        {/* Row Height Config Slider */}
-        <div className="flex items-center space-x-2 border-l border-white/10 pl-4 py-0.5">
-          <span className="text-[10px] font-mono text-slate-400 shrink-0 select-none">ROW HEIGHT:</span>
-          <input 
-            type="range" 
-            min="26" 
-            max="76" 
-            value={rowHeight} 
-            onChange={(e) => setRowHeight(Number(e.target.value))} 
-            className="w-20 accent-indigo-500 cursor-col-resize h-1 bg-white/10 rounded-lg appearance-none"
-            title="Slide to change row height sizing"
-          />
-          <span className="text-[10px] font-mono text-indigo-400 font-bold shrink-0">{rowHeight}px</span>
-        </div>
+          {/* View Limit Filter */}
+          <div className="flex items-center space-x-2 min-w-[130px]">
+            <Table className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <span className="text-[10px] font-mono text-slate-500 uppercase shrink-0">Rows:</span>
+            <select
+              value={viewLimit}
+              onChange={(e) => setViewLimit(e.target.value)}
+              className="w-full bg-[#0a0a0a] border border-white/10 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer font-sans"
+            >
+              <option value="20">20 Rows</option>
+              <option value="60">60 Rows</option>
+              <option value="all">All Rows</option>
+            </select>
+          </div>
 
-        {/* batch resize stats cols */}
-        <div className="flex items-center space-x-2 border-l border-white/10 pl-4 py-0.5">
-          <span className="text-[10px] font-mono text-slate-400 shrink-0 select-none">STAT COLS:</span>
-          <input 
-            type="range" 
-            min="32" 
-            max="110" 
-            value={colWidths["str"] || 52} 
-            onChange={(e) => {
-              const val = Number(e.target.value);
+          {/* Row Height Config Slider */}
+          <div className="flex items-center space-x-2 border-l border-white/10 pl-4 py-0.5">
+            <span className="text-[10px] font-mono text-slate-400 shrink-0 select-none">ROW HEIGHT:</span>
+            <input 
+              type="range" 
+              min="26" 
+              max="76" 
+              value={rowHeight} 
+              onChange={(e) => setRowHeight(Number(e.target.value))} 
+              className="w-20 accent-indigo-500 cursor-col-resize h-1 bg-white/10 rounded-lg appearance-none"
+              title="Slide to change row height sizing"
+            />
+            <span className="text-[10px] font-mono text-indigo-400 font-bold shrink-0">{rowHeight}px</span>
+          </div>
+
+          {/* batch resize stats cols */}
+          <div className="flex items-center space-x-2 border-l border-white/10 pl-4 py-0.5">
+            <span className="text-[10px] font-mono text-slate-400 shrink-0 select-none">STAT COLS:</span>
+            <input 
+              type="range" 
+              min="32" 
+              max="110" 
+              value={colWidths["str"] || 52} 
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setColWidths(prev => {
+                  const updated = { ...prev };
+                  STAT_GROUPS.forEach(g => {
+                    g.stats.forEach(s => {
+                      updated[s.key] = val;
+                    });
+                  });
+                  return updated;
+                });
+              }} 
+              className="w-20 accent-emerald-500 cursor-col-resize h-1 bg-white/10 rounded-lg appearance-none"
+              title="Resize all 23 primary stats column widths"
+            />
+            <span className="text-[10px] font-mono text-emerald-400 font-bold shrink-0">{(colWidths["str"] || 52)}px</span>
+          </div>
+
+          {/* Reset spreadsheet views */}
+          <button
+            onClick={() => {
+              setMetaOrder(["party", "name", "job", "potential", "ceiling", "overallCurrent", "delta"]);
+              setGroupOrder(["physical", "vitality", "mental", "social", "combat", "heroic", "arcane"]);
+              setRowHeight(36);
+              setViewLimit("all");
+              setHighlightedRowId(null);
+              setHighlightedColKey(null);
+              setHighlightedCell(null);
               setColWidths(prev => {
-                const updated = { ...prev };
+                const res = { ...prev };
+                res.party = 125;
+                res.name = 145;
+                res.job = 120;
+                res.potential = 85;
+                res.ceiling = 85;
+                res.overallCurrent = 90;
+                res.delta = 85;
                 STAT_GROUPS.forEach(g => {
                   g.stats.forEach(s => {
-                    updated[s.key] = val;
+                    res[s.key] = 52;
                   });
                 });
-                return updated;
+                return res;
               });
-            }} 
-            className="w-20 accent-emerald-500 cursor-col-resize h-1 bg-white/10 rounded-lg appearance-none"
-            title="Resize all 23 primary stats column widths"
-          />
-          <span className="text-[10px] font-mono text-emerald-400 font-bold shrink-0">{(colWidths["str"] || 52)}px</span>
+            }}
+            className="text-[9px] font-mono uppercase bg-slate-500/10 hover:bg-slate-500/20 text-slate-300 border border-slate-500/20 px-2 py-1 rounded transition-colors cursor-pointer"
+          >
+            Reset View
+          </button>
         </div>
-
-        {/* Reset spreadsheet views */}
-        <button
-          onClick={() => {
-            setMetaOrder(["party", "name", "job", "roles", "potential", "ceiling"]);
-            setGroupOrder(["physical", "vitality", "mental", "social", "combat", "heroic", "arcane"]);
-            setRowHeight(36);
-            setViewLimit("all");
-            setHighlightedRowId(null);
-            setHighlightedColKey(null);
-            setHighlightedCell(null);
-            setColWidths(prev => {
-              const res = { ...prev };
-              res.party = 125;
-              res.name = 145;
-              res.job = 120;
-              res.roles = 145;
-              res.potential = 85;
-              res.ceiling = 85;
-              STAT_GROUPS.forEach(g => {
-                g.stats.forEach(s => {
-                  res[s.key] = 52;
-                });
-              });
-              return res;
-            });
-          }}
-          className="text-[9px] font-mono uppercase bg-slate-500/10 hover:bg-slate-500/20 text-slate-300 border border-slate-500/20 px-2 py-1 rounded transition-colors cursor-pointer"
-        >
-          Reset View
-        </button>
       </div>
 
       {/* Main Spreadsheet Table Container with Horizontal Scroll */}
@@ -1066,7 +1097,7 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
               <tr className="bg-[#111] border-b border-white/15 h-8">
                 {/* Meta Columns Category Headers */}
                 {metaOrder.map((colKey) => {
-                  if (colKey === "ceiling" || colKey === "overallCurrent") return null;
+                  if (colKey === "ceiling" || colKey === "overallCurrent" || colKey === "delta") return null;
 
                   const isSticky = colKey === "party" || colKey === "name";
                   const isParty = colKey === "party";
@@ -1097,7 +1128,7 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
                   const bgClass = isSticky ? "bg-[#16161c] text-indigo-300" : "bg-[#0b0c0f] text-slate-500";
 
                   const isPotentialGroup = colKey === "potential";
-                  const colSpanVal = isPotentialGroup ? 3 : 1;
+                  const colSpanVal = isPotentialGroup ? 4 : 1;
 
                   return (
                     <th 
