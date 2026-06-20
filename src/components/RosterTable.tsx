@@ -306,9 +306,16 @@ export const RosterTable: React.FC<RosterTableProps> = ({
     "arcane"
   ]);
 
-  // Load parties from local storage
+  // Load parties from local storage for the currently active preset slot
   useEffect(() => {
-    const saved = localStorage.getItem("guild-parties");
+    const slotSaved = localStorage.getItem("guild-selected-preset-slot");
+    const slot = (slotSaved === "1" || slotSaved === "2" || slotSaved === "3") ? slotSaved : "1";
+    const activeKey = `guild-parties-active-slot-${slot}`;
+    let saved = localStorage.getItem(activeKey);
+    if (!saved && slot === "1") {
+      // Fallback to legacy
+      saved = localStorage.getItem("guild-parties");
+    }
     if (saved) {
       try {
         const parsed = JSON.parse(saved);

@@ -14,7 +14,8 @@ import {
   CheckCircle,
   HelpCircle,
   FolderSync,
-  Crown
+  Crown,
+  Copy
 } from "lucide-react";
 
 interface PartyTabProps {
@@ -86,14 +87,22 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
   });
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>("all");
   const [presetUpdateTrigger, setPresetUpdateTrigger] = useState(0);
+  const [cloneSourceSlot, setCloneSourceSlot] = useState<1 | 2 | 3>(2);
 
-  // Initialize parties from localStorage or defaults
+  // Initialize active parties from localStorage or defaults on a per-preset-slot basis
   useEffect(() => {
-    const slot = selectedPresetSlot;
-    const saved = localStorage.getItem(`guild-parties-preset-${slot}`);
-    if (saved) {
+    // Keep cloneSourceSlot distinct from selectedPresetSlot
+    if (cloneSourceSlot === selectedPresetSlot) {
+      const remainingSlots = ([1, 2, 3] as const).filter(s => s !== selectedPresetSlot);
+      if (remainingSlots.length > 0) {
+        setCloneSourceSlot(remainingSlots[0]);
+      }
+    }
+    const activeKey = `guild-parties-active-slot-${selectedPresetSlot}`;
+    const savedActive = localStorage.getItem(activeKey);
+    if (savedActive) {
       try {
-        const parsed = JSON.parse(saved);
+        const parsed = JSON.parse(savedActive);
         if (Array.isArray(parsed) && parsed.length === 10) {
           const normalized = parsed.map(p => {
             let ids = Array.isArray(p.memberIds) ? p.memberIds.filter(id => typeof id === "string") : [];
@@ -106,38 +115,42 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
             };
           });
           setParties(normalized);
-          setSelectedPartyId(normalized[0].id);
+          if (!normalized.some(p => p.id === selectedPartyId)) {
+            setSelectedPartyId(normalized[0].id);
+          }
           return;
         }
       } catch (e) {
-        console.error("Failed to parse saved preset parties", e);
+        console.error("Failed to parse active parties for slot", selectedPresetSlot, e);
       }
     }
 
-    // Fallback to active/legacy
-    const legacySaved = localStorage.getItem("guild-parties");
-    if (legacySaved) {
-      try {
-        const parsed = JSON.parse(legacySaved);
-        if (Array.isArray(parsed) && parsed.length === 10) {
-          const normalized = parsed.map(p => {
-            let ids = Array.isArray(p.memberIds) ? p.memberIds.filter(id => typeof id === "string") : [];
-            ids = ids.slice(0, 5);
-            while (ids.length < 5) ids.push("");
-            return {
-              ...p,
-              memberIds: ids,
-              leaderId: typeof p.leaderId === "string" ? p.leaderId : null
-            };
-          });
-          setParties(normalized);
-          setSelectedPartyId(normalized[0].id);
-          // Also save it to current preset slot so they are in sync
-          localStorage.setItem(`guild-parties-preset-${slot}`, JSON.stringify(normalized));
-          return;
+    // Fallback to legacy global `guild-parties` if we are on Slot 1
+    if (selectedPresetSlot === 1) {
+      const legacySaved = localStorage.getItem("guild-parties");
+      if (legacySaved) {
+        try {
+          const parsed = JSON.parse(legacySaved);
+          if (Array.isArray(parsed) && parsed.length === 10) {
+            const normalized = parsed.map(p => {
+              let ids = Array.isArray(p.memberIds) ? p.memberIds.filter(id => typeof id === "string") : [];
+              ids = ids.slice(0, 5);
+              while (ids.length < 5) ids.push("");
+              return {
+                ...p,
+                memberIds: ids,
+                leaderId: typeof p.leaderId === "string" ? p.leaderId : null
+              };
+            });
+            saveParties(normalized, 1);
+            if (!normalized.some(p => p.id === selectedPartyId)) {
+              setSelectedPartyId(normalized[0].id);
+            }
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to parse saved parties", e);
         }
-      } catch (e) {
-        console.error("Failed to parse saved parties", e);
       }
     }
 
@@ -148,17 +161,19 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
       memberIds: ["", "", "", "", ""],
       leaderId: null
     }));
-    setParties(initialParties);
-    setSelectedPartyId(initialParties[0].id);
-  }, []);
+    saveParties(initialParties, selectedPresetSlot);
+    if (!initialParties.some(p => p.id === selectedPartyId)) {
+      setSelectedPartyId(initialParties[0].id);
+    }
+  }, [selectedPresetSlot]);
 
-  // Sync parties to local storage
-  const saveParties = (newParties: Party[], slotVal?: number) => {
-    const slot = slotVal ?? selectedPresetSlot;
+  // Sync active parties to local storage (specifically for the current active slot)
+  const saveParties = (newParties: Party[], slotNum?: 1 | 2 | 3) => {
+    const slot = slotNum ?? selectedPresetSlot;
     setParties(newParties);
+    localStorage.setItem(`guild-parties-active-slot-${slot}`, JSON.stringify(newParties));
+    // Fallback sync for components loading the simple key
     localStorage.setItem("guild-parties", JSON.stringify(newParties));
-    localStorage.setItem(`guild-parties-preset-${slot}`, JSON.stringify(newParties));
-    setPresetUpdateTrigger(prev => prev + 1);
   };
 
   // Drag handles
@@ -491,76 +506,104 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
     onShowStatusBarMessage("Successfully disbanded all 10 squads.");
   };
 
-  // Switch Preset Slot handler with automatic loading/clearing (snapshot style)
+  // Switch Preset Slot handler (sets the targeted slot, does not overwrite active in-screen drafts)
   const handleSwitchPresetSlot = (slotNum: 1 | 2 | 3) => {
     setSelectedPresetSlot(slotNum);
     localStorage.setItem("guild-selected-preset-slot", String(slotNum));
-    const saved = localStorage.getItem(`guild-parties-preset-${slotNum}`);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const normalized = parsed.map(p => {
-            let ids = Array.isArray(p.memberIds) ? p.memberIds.filter(id => typeof id === "string") : [];
-            ids = ids.slice(0, 5);
-            while (ids.length < 5) ids.push("");
-            return {
-              ...p,
-              memberIds: ids,
-              leaderId: typeof p.leaderId === "string" ? p.leaderId : null
-            };
-          });
-          saveParties(normalized, slotNum);
-          setSelectedPartyId(normalized[0].id);
-          onShowStatusBarMessage(`Switched to Preset Slot ${slotNum} and loaded saved squads.`);
-        }
-      } catch (e) {
-        console.error(e);
-        onShowStatusBarMessage(`Preset Slot ${slotNum} contains corrupted files.`);
+    
+    // Auto-adjust clone source slot to keep it distinct from the active slot
+    if (cloneSourceSlot === slotNum) {
+      const remainingSlots = ([1, 2, 3] as const).filter(s => s !== slotNum);
+      if (remainingSlots.length > 0) {
+        setCloneSourceSlot(remainingSlots[0]);
       }
+    }
+
+    const isSlotSaved = localStorage.getItem(`guild-parties-preset-${slotNum}`) !== null;
+    if (isSlotSaved) {
+      onShowStatusBarMessage(`Targeted Preset Slot ${slotNum}. Click 'Load' to view it, or 'Save' to overwrite.`);
     } else {
-      // If the target preset slot is empty, we set active squads to all blank (snapshot load behavior)
+      onShowStatusBarMessage(`Targeted Preset Slot ${slotNum} (Empty). Click 'Save' to store your current on-screen squads.`);
+    }
+  };
+
+  // Clone active squads handler
+  const handleCloneActiveSlot = (sourceSlot: 1 | 2 | 3) => {
+    if (sourceSlot === selectedPresetSlot) {
+      onShowStatusBarMessage("Cannot clone a slot into itself.");
+      return;
+    }
+    
+    const sourceKey = `guild-parties-active-slot-${sourceSlot}`;
+    const savedSource = localStorage.getItem(sourceKey);
+    let parsed: Party[] | null = null;
+    
+    if (savedSource) {
+      try {
+        parsed = JSON.parse(savedSource);
+      } catch (e) {
+        console.error("Failed to parse source preset active squad list", e);
+      }
+    } else if (sourceSlot === 1) {
+      // Legacy fallback
+      const legacySaved = localStorage.getItem("guild-parties");
+      if (legacySaved) {
+        try {
+          parsed = JSON.parse(legacySaved);
+        } catch (e) {
+          console.error("Failed to parse legacy parties", e);
+        }
+      }
+    }
+    
+    if (parsed && Array.isArray(parsed) && parsed.length === 10) {
+      const normalized = parsed.map(p => {
+        let ids = Array.isArray(p.memberIds) ? p.memberIds.filter(id => typeof id === "string") : [];
+        ids = ids.slice(0, 5);
+        while (ids.length < 5) ids.push("");
+        return {
+          ...p,
+          memberIds: ids,
+          leaderId: typeof p.leaderId === "string" ? p.leaderId : null
+        };
+      });
+      saveParties(normalized, selectedPresetSlot);
+      setSelectedPartyId(normalized[0].id);
+      onShowStatusBarMessage(`Active squads successfully cloned from Slot ${sourceSlot} to current Slot ${selectedPresetSlot}!`);
+    } else {
+      // Create empty ones
       const initialParties: Party[] = Array.from({ length: 10 }, (_, i) => ({
         id: `party-${i + 1}`,
         name: DEFAULT_PARTY_NAMES[i] || `Party ${i + 1}`,
         memberIds: ["", "", "", "", ""],
         leaderId: null
       }));
-      saveParties(initialParties, slotNum);
+      saveParties(initialParties, selectedPresetSlot);
       setSelectedPartyId(initialParties[0].id);
-      onShowStatusBarMessage(`Switched to Preset Slot ${slotNum} (Slot is Empty). Active squads cleared.`);
+      onShowStatusBarMessage(`Slot ${sourceSlot} had no active squads. Placed empty workspace layout.`);
     }
   };
 
-  // Save preset handler
+  // Save preset handler (explicit save to the chosen slot database)
   const handleSavePreset = () => {
     localStorage.setItem(`guild-parties-preset-${selectedPresetSlot}`, JSON.stringify(parties));
     setPresetUpdateTrigger(prev => prev + 1);
     onShowStatusBarMessage(`Tactical squads successfully saved to Local Preset Slot ${selectedPresetSlot}!`);
   };
 
-  // Clear preset slot handler
+  // Clear preset slot handler (deletes chosen preset slot from database, leaves active in-screen squads intact)
   const handleClearPresetSlot = () => {
     const key = `guild-parties-preset-${selectedPresetSlot}`;
     if (localStorage.getItem(key)) {
       localStorage.removeItem(key);
       setPresetUpdateTrigger(prev => prev + 1);
-      
-      const initialParties: Party[] = Array.from({ length: 10 }, (_, i) => ({
-        id: `party-${i + 1}`,
-        name: DEFAULT_PARTY_NAMES[i] || `Party ${i + 1}`,
-        memberIds: ["", "", "", "", ""],
-        leaderId: null
-      }));
-      saveParties(initialParties);
-      setSelectedPartyId(initialParties[0].id);
-      onShowStatusBarMessage(`Preset Slot ${selectedPresetSlot} cleared. Active squads cleared.`);
+      onShowStatusBarMessage(`Preset Slot ${selectedPresetSlot} cleared successfully. Current active draft is kept on screen.`);
     } else {
       onShowStatusBarMessage(`Preset Slot ${selectedPresetSlot} is already empty.`);
     }
   };
 
-  // Load preset handler
+  // Load preset handler (loads selected preset database into on-screen active squads)
   const handleLoadPreset = () => {
     const saved = localStorage.getItem(`guild-parties-preset-${selectedPresetSlot}`);
     if (saved) {
@@ -571,7 +614,6 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
             let ids = Array.isArray(p.memberIds) ? p.memberIds.filter(id => typeof id === "string") : [];
             ids = ids.slice(0, 5);
             while (ids.length < 5) ids.push("");
-            // ensure leader is carried over
             return {
               ...p,
               memberIds: ids,
@@ -580,22 +622,14 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
           });
           saveParties(normalized);
           setSelectedPartyId(normalized[0].id);
-          onShowStatusBarMessage(`Tactical squads successfully restored from Local Preset Slot ${selectedPresetSlot}!`);
+          onShowStatusBarMessage(`Loaded saved squads from Local Preset Slot ${selectedPresetSlot} onto the screen!`);
         }
       } catch (e) {
         console.error(e);
         onShowStatusBarMessage(`Preset Slot ${selectedPresetSlot} contains corrupted files.`);
       }
     } else {
-      const initialParties: Party[] = Array.from({ length: 10 }, (_, i) => ({
-        id: `party-${i + 1}`,
-        name: DEFAULT_PARTY_NAMES[i] || `Party ${i + 1}`,
-        memberIds: ["", "", "", "", ""],
-        leaderId: null
-      }));
-      saveParties(initialParties);
-      setSelectedPartyId(initialParties[0].id);
-      onShowStatusBarMessage(`Preset Slot ${selectedPresetSlot} is empty. Active squads cleared.`);
+      onShowStatusBarMessage(`Preset Slot ${selectedPresetSlot} is empty. No squads were loaded.`);
     }
   };
 
@@ -733,6 +767,41 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
             >
               <Trash2 className="w-3.5 h-3.5 text-rose-400" />
               <span>Clear Slot {selectedPresetSlot}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Clone Active Squads Panel */}
+        <div className="bg-[#0f0f0f] border border-white/10 p-3.5 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center space-x-2.5">
+            <Copy className="w-4 h-4 text-indigo-400 animate-pulse" />
+            <div>
+              <span className="text-xs font-bold text-slate-200 block">Clone Active Squads</span>
+              <span className="text-[10px] text-slate-400">Directly duplicate on-screen active drafts from another slot into your current Slot {selectedPresetSlot}.</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
+            <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">From Slot:</span>
+            <select
+              value={cloneSourceSlot}
+              onChange={(e) => setCloneSourceSlot(Number(e.target.value) as 1 | 2 | 3)}
+              className="bg-[#050505] border border-white/10 rounded px-2.5 text-xs text-slate-100 h-8 focus:outline-none focus:border-indigo-500 font-sans cursor-pointer"
+            >
+              {[1, 2, 3]
+                .filter(s => s !== selectedPresetSlot)
+                .map(s => (
+                  <option key={s} value={s}>Slot {s}</option>
+                ))
+              }
+            </select>
+            <button
+              type="button"
+              onClick={() => handleCloneActiveSlot(cloneSourceSlot)}
+              className="flex items-center space-x-1 px-3 h-8 bg-indigo-500/10 hover:bg-indigo-500/15 text-[11px] text-indigo-300 hover:text-indigo-200 border border-indigo-500/15 hover:border-indigo-500/35 rounded cursor-pointer transition-all font-bold tracking-wide select-none"
+            >
+              <Copy className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Clone from Slot {cloneSourceSlot}</span>
             </button>
           </div>
         </div>
