@@ -23,6 +23,8 @@ import {
   Clock
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import logoImg from "../assets/logo.png";
+
 
 const LOCAL_STORAGE_KEY = "etrian_roster_vector_state";
 const METADATA_KEY = "etrian_parent_json_state";
@@ -349,16 +351,19 @@ export default function App() {
         <div className="w-full max-w-[1920px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           
           <div className="flex items-center space-x-3.5">
-            <div className="w-10 h-10 bg-indigo-600 rounded flex items-center justify-center text-white font-black tracking-tighter text-sm shadow-[0_0_15px_rgba(79,70,229,0.3)]">
-              GTMT
-            </div>
+            <img 
+              src={logoImg} 
+              alt="GTMT Logo" 
+              className="w-10 h-10 object-contain rounded shadow-[0_0_15px_rgba(79,70,229,0.2)]" 
+              referrerPolicy="no-referrer"
+            />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-bold font-sans tracking-tight text-white uppercase sm:text-lg">
                   GT-Management Tool
                 </h1>
                 <span className="text-[10px] bg-indigo-600/10 text-indigo-400 border border-indigo-505/25 px-2 py-0.5 rounded font-mono">
-                  v2.4.1
+                  v2.1.1
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5 font-sans">

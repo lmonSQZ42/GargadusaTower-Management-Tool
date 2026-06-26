@@ -11,6 +11,7 @@ import {
   UserPlus, 
   ShieldAlert, 
   Plus, 
+  Minus,
   CheckCircle,
   HelpCircle,
   FolderSync,
@@ -23,7 +24,7 @@ interface PartyTabProps {
   onShowStatusBarMessage: (msg: string) => void;
 }
 
-const DEFAULT_PARTY_NAMES = Array.from({ length: 10 }, (_, i) => `Party ${i + 1}`);
+const DEFAULT_PARTY_NAMES = Array.from({ length: 11 }, (_, i) => `Party ${i + 1}`);
 
 const isHealer = (member: RosterMember): boolean => {
   const roles = (member.roles || []).map(r => r.toLowerCase());
@@ -103,7 +104,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
     if (savedActive) {
       try {
         const parsed = JSON.parse(savedActive);
-        if (Array.isArray(parsed) && parsed.length === 10) {
+        if (Array.isArray(parsed)) {
           const normalized = parsed.map(p => {
             let ids = Array.isArray(p.memberIds) ? p.memberIds.filter(id => typeof id === "string") : [];
             ids = ids.slice(0, 5);
@@ -114,6 +115,15 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
               leaderId: typeof p.leaderId === "string" ? p.leaderId : null
             };
           });
+          while (normalized.length < 11) {
+            const index = normalized.length;
+            normalized.push({
+              id: `party-${index + 1}`,
+              name: DEFAULT_PARTY_NAMES[index] || `Party ${index + 1}`,
+              memberIds: ["", "", "", "", ""],
+              leaderId: null
+            });
+          }
           setParties(normalized);
           if (!normalized.some(p => p.id === selectedPartyId)) {
             setSelectedPartyId(normalized[0].id);
@@ -131,7 +141,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
       if (legacySaved) {
         try {
           const parsed = JSON.parse(legacySaved);
-          if (Array.isArray(parsed) && parsed.length === 10) {
+          if (Array.isArray(parsed)) {
             const normalized = parsed.map(p => {
               let ids = Array.isArray(p.memberIds) ? p.memberIds.filter(id => typeof id === "string") : [];
               ids = ids.slice(0, 5);
@@ -142,6 +152,15 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
                 leaderId: typeof p.leaderId === "string" ? p.leaderId : null
               };
             });
+            while (normalized.length < 11) {
+              const index = normalized.length;
+              normalized.push({
+                id: `party-${index + 1}`,
+                name: DEFAULT_PARTY_NAMES[index] || `Party ${index + 1}`,
+                memberIds: ["", "", "", "", ""],
+                leaderId: null
+              });
+            }
             saveParties(normalized, 1);
             if (!normalized.some(p => p.id === selectedPartyId)) {
               setSelectedPartyId(normalized[0].id);
@@ -154,8 +173,8 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
       }
     }
 
-    // Default 10 Parties
-    const initialParties: Party[] = Array.from({ length: 10 }, (_, i) => ({
+    // Default 11 Parties
+    const initialParties: Party[] = Array.from({ length: 11 }, (_, i) => ({
       id: `party-${i + 1}`,
       name: DEFAULT_PARTY_NAMES[i] || `Party ${i + 1}`,
       memberIds: ["", "", "", "", ""],
@@ -396,7 +415,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
         const parsed = JSON.parse(event.target?.result as string);
         if (Array.isArray(parsed)) {
           // Legacy format (array of parties)
-          const validated = parsed.slice(0, 10).map((item, idx) => {
+          const validated = parsed.slice(0, 11).map((item, idx) => {
             let ids = Array.isArray(item.memberIds) ? item.memberIds.filter((m: any) => typeof m === "string") : [];
             ids = ids.slice(0, 5);
             while (ids.length < 5) ids.push("");
@@ -408,7 +427,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
             };
           });
 
-          while (validated.length < 10) {
+          while (validated.length < 11) {
             const index = validated.length;
             validated.push({
               id: `party-${index + 1}`,
@@ -420,13 +439,13 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
 
           saveParties(validated);
           setSelectedPartyId(validated[0].id);
-          onShowStatusBarMessage("Successfully restored 10 active parties from file!");
+          onShowStatusBarMessage("Successfully restored 11 active parties from file!");
         } else if (parsed && typeof parsed === "object") {
           // New format containing activeParties and presets
           let activePartiesToLoad = parties;
           const incomingActive = parsed.activeParties || parsed.parties;
           if (Array.isArray(incomingActive)) {
-            activePartiesToLoad = incomingActive.slice(0, 10).map((item, idx) => {
+            activePartiesToLoad = incomingActive.slice(0, 11).map((item, idx) => {
               let ids = Array.isArray(item.memberIds) ? item.memberIds.filter((m: any) => typeof m === "string") : [];
               ids = ids.slice(0, 5);
               while (ids.length < 5) ids.push("");
@@ -437,7 +456,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
                 leaderId: typeof item.leaderId === "string" ? item.leaderId : null
               };
             });
-            while (activePartiesToLoad.length < 10) {
+            while (activePartiesToLoad.length < 11) {
               const index = activePartiesToLoad.length;
               activePartiesToLoad.push({
                 id: `party-${index + 1}`,
@@ -452,7 +471,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
             [1, 2, 3].forEach(slotNum => {
               const slotPreset = parsed.presets[String(slotNum)] || parsed.presets[slotNum];
               if (Array.isArray(slotPreset)) {
-                const validatedPreset = slotPreset.slice(0, 10).map((item, idx) => {
+                const validatedPreset = slotPreset.slice(0, 11).map((item, idx) => {
                   let ids = Array.isArray(item.memberIds) ? item.memberIds.filter((m: any) => typeof m === "string") : [];
                   ids = ids.slice(0, 5);
                   while (ids.length < 5) ids.push("");
@@ -463,7 +482,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
                     leaderId: typeof item.leaderId === "string" ? item.leaderId : null
                   };
                 });
-                while (validatedPreset.length < 10) {
+                while (validatedPreset.length < 11) {
                   const index = validatedPreset.length;
                   validatedPreset.push({
                     id: `party-${index + 1}`,
@@ -495,7 +514,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
     e.target.value = "";
   };
 
-  // Clear all enlisted members across all 10 squads
+  // Clear all enlisted members across all squads
   const handleClearAllParties = () => {
     const updated = parties.map(p => ({
       ...p,
@@ -503,7 +522,46 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
       leaderId: null
     }));
     saveParties(updated);
-    onShowStatusBarMessage("Successfully disbanded all 10 squads.");
+    onShowStatusBarMessage(`Successfully disbanded all ${parties.length} squads.`);
+  };
+
+  // Add a new squad (+1)
+  const handleAddSquad = () => {
+    const nextIdx = parties.length + 1;
+    const newSquad: Party = {
+      id: `party-${nextIdx}-${Date.now()}`,
+      name: `Party ${nextIdx}`,
+      memberIds: ["", "", "", "", ""],
+      leaderId: null
+    };
+    const updated = [...parties, newSquad];
+    saveParties(updated);
+    onShowStatusBarMessage(`Added a new squad: ${newSquad.name}`);
+  };
+
+  // Remove the selected squad (-1)
+  const handleRemoveSquad = () => {
+    const selectedIdx = parties.findIndex(p => p.id === selectedPartyId);
+    if (selectedIdx === -1) {
+      onShowStatusBarMessage("No squad is currently selected.");
+      return;
+    }
+
+    if (selectedIdx < 10) {
+      onShowStatusBarMessage("The first 10 squads are fixed and cannot be deleted.");
+      return;
+    }
+
+    const selectedSquad = parties[selectedIdx];
+    const updated = parties.filter(p => p.id !== selectedPartyId);
+    saveParties(updated);
+    
+    // Select the previous party in the list (or index - 1)
+    const nextSelectIdx = Math.max(0, selectedIdx - 1);
+    if (updated[nextSelectIdx]) {
+      setSelectedPartyId(updated[nextSelectIdx].id);
+    }
+    onShowStatusBarMessage(`Disbanded and deleted ${selectedSquad.name}.`);
   };
 
   // Switch Preset Slot handler (sets the targeted slot, does not overwrite active in-screen drafts)
@@ -556,7 +614,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
       }
     }
     
-    if (parsed && Array.isArray(parsed) && parsed.length === 10) {
+    if (parsed && Array.isArray(parsed)) {
       const normalized = parsed.map(p => {
         let ids = Array.isArray(p.memberIds) ? p.memberIds.filter(id => typeof id === "string") : [];
         ids = ids.slice(0, 5);
@@ -567,12 +625,21 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
           leaderId: typeof p.leaderId === "string" ? p.leaderId : null
         };
       });
+      while (normalized.length < 11) {
+        const index = normalized.length;
+        normalized.push({
+          id: `party-${index + 1}`,
+          name: DEFAULT_PARTY_NAMES[index] || `Party ${index + 1}`,
+          memberIds: ["", "", "", "", ""],
+          leaderId: null
+        });
+      }
       saveParties(normalized, selectedPresetSlot);
       setSelectedPartyId(normalized[0].id);
       onShowStatusBarMessage(`Active squads successfully cloned from Slot ${sourceSlot} to current Slot ${selectedPresetSlot}!`);
     } else {
       // Create empty ones
-      const initialParties: Party[] = Array.from({ length: 10 }, (_, i) => ({
+      const initialParties: Party[] = Array.from({ length: 11 }, (_, i) => ({
         id: `party-${i + 1}`,
         name: DEFAULT_PARTY_NAMES[i] || `Party ${i + 1}`,
         memberIds: ["", "", "", "", ""],
@@ -666,7 +733,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start font-sans">
       
-      {/* LEFT BLOCK: 10 PARTIES (8 cols on normal, 9 cols on wide desktop) */}
+      {/* LEFT BLOCK: 11 PARTIES (8 cols on normal, 9 cols on wide desktop) */}
       <div className="lg:col-span-8 2xl:col-span-9 space-y-4">
         
         {/* Actions panel */}
@@ -705,11 +772,33 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
             <button
               onClick={handleClearAllParties}
               className="flex items-center space-x-1 px-3 py-1.5 bg-rose-950/20 hover:bg-rose-900/40 text-[11px] text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/40 rounded cursor-pointer transition-all select-none font-bold"
-              title="Disband all enlisted members across all 10 squads"
+              title={`Disband all enlisted members across all ${parties.length} squads`}
             >
               <Trash2 className="w-3.5 h-3.5 text-rose-400" />
               <span>Clear All</span>
             </button>
+
+            {/* Dynamic Squad Management: Add Squad (+1) & Remove Squad (-1) */}
+            <div className="flex bg-[#050505] border border-white/10 rounded p-0.5 space-x-1">
+              <button
+                type="button"
+                onClick={handleAddSquad}
+                className="flex items-center space-x-1 px-2.5 py-1.5 bg-indigo-950/40 hover:bg-indigo-900/40 text-[11px] text-indigo-300 hover:text-indigo-200 border border-indigo-500/10 hover:border-indigo-500/30 rounded cursor-pointer transition-all font-bold select-none"
+                title="Add a new squad (+1)"
+              >
+                <Plus className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Squad +1</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleRemoveSquad}
+                className="flex items-center space-x-1 px-2.5 py-1.5 bg-rose-950/15 hover:bg-rose-900/30 text-[11px] text-rose-450 hover:text-rose-350 border border-rose-500/10 hover:border-rose-500/20 rounded cursor-pointer transition-all font-bold select-none"
+                title="Delete the selected squad (Only squads 11+ can be deleted)"
+              >
+                <Minus className="w-3.5 h-3.5 text-rose-500" />
+                <span>Squad -1</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -806,7 +895,7 @@ export const PartyTab: React.FC<PartyTabProps> = ({ roster, onShowStatusBarMessa
           </div>
         </div>
 
-        {/* 10 Parties Roster Stack */}
+        {/* 11 Parties Roster Stack */}
         <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3.5">
           {parties.map((party, idx) => {
             const isActive = party.id === selectedPartyId;

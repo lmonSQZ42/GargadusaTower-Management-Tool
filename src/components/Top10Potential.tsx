@@ -175,6 +175,11 @@ export const Top10Potential: React.FC<Top10PotentialProps> = ({
       .slice(0, 5);
   }, [activeParties, rosterMap]);
 
+  const getPartyForMember = (memberId: string): string => {
+    const matchedParty = activeParties.find((p) => p.memberIds?.includes(memberId));
+    return matchedParty ? matchedParty.name : "Unassigned";
+  };
+
   return (
     <div className="bg-[#0f0f0f] border border-white/10 rounded-lg p-4 sm:p-6 shadow-xl space-y-5 font-sans">
       
@@ -238,30 +243,28 @@ export const Top10Potential: React.FC<Top10PotentialProps> = ({
           </button>
         </div>
 
-        {viewMode === "parties" && (
-          <div className="flex items-center space-x-2.5 pr-1 justify-end w-full sm:w-auto">
-            <span className="text-[10px] text-slate-450 font-mono uppercase font-bold tracking-wider">Analyze Slot:</span>
-            <div className="flex bg-[#050505] border border-white/10 rounded p-0.5">
-              {([1, 2, 3] as const).map((slotNum) => {
-                const isActive = currentSlot === slotNum;
-                return (
-                  <button
-                    key={slotNum}
-                    type="button"
-                    onClick={() => setCurrentSlot(slotNum)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all font-bold cursor-pointer ${
-                      isActive
-                        ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-extrabold"
-                        : "text-slate-550 hover:text-slate-400"
-                    }`}
-                  >
-                    Slot {slotNum}
-                  </button>
-                );
-              })}
-            </div>
+        <div className="flex items-center space-x-2.5 pr-1 justify-end w-full sm:w-auto">
+          <span className="text-[10px] text-slate-450 font-mono uppercase font-bold tracking-wider">Party Slot:</span>
+          <div className="flex bg-[#050505] border border-white/10 rounded p-0.5">
+            {([1, 2, 3] as const).map((slotNum) => {
+              const isActive = currentSlot === slotNum;
+              return (
+                <button
+                  key={slotNum}
+                  type="button"
+                  onClick={() => setCurrentSlot(slotNum)}
+                  className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all font-bold cursor-pointer ${
+                    isActive
+                      ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-extrabold"
+                      : "text-slate-550 hover:text-slate-400"
+                  }`}
+                >
+                  Slot {slotNum}
+                </button>
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
 
       {/* ADVENTURERS VIEW */}
@@ -354,6 +357,14 @@ export const Top10Potential: React.FC<Top10PotentialProps> = ({
                             </span>
                           </>
                         )}
+                        <span className="text-slate-600">•</span>
+                        <span className={`px-1.5 py-0.2 rounded text-[10px] uppercase font-mono font-bold tracking-wider ${
+                          getPartyForMember(member.id) !== "Unassigned"
+                            ? "bg-indigo-500/15 text-indigo-350 border border-indigo-500/20"
+                            : "bg-slate-500/10 text-slate-450 border border-slate-500/10"
+                        }`}>
+                          {getPartyForMember(member.id)}
+                        </span>
                       </div>
                     </div>
 

@@ -83,3 +83,4 @@ export interface Party {
   hasCrown?: boolean;
   leaderId?: string | null;
 }
+

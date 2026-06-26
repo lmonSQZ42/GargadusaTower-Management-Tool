@@ -8,7 +8,8 @@ import {
   ChevronLeft, 
   ChevronRight, 
   ArrowUpDown,
-  MoveHorizontal
+  MoveHorizontal,
+  X
 } from "lucide-react";
 
 // Alphabetical Potential formatting
@@ -851,7 +852,7 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
           })()}
         </div>
 
-        {/* Row 2: Parties 1-10 */}
+        {/* Row 2: Parties 1-11 */}
         <div className="flex flex-wrap items-center gap-1.5 w-full">
           {parties.map((p) => {
             const isSelected = selectedPartyFilter === p.name;
@@ -887,8 +888,18 @@ export const ListPartyDifference: React.FC<ListPartyDifferenceProps> = ({
               placeholder="Search adventurers, job classes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#0a0a0a] border border-white/10 rounded pl-9 pr-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
+              className="w-full bg-[#0a0a0a] border border-white/10 rounded pl-9 pr-8 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white rounded transition-colors"
+                title="Clear Search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* View Limit Filter */}

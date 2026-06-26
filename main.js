@@ -13,6 +13,7 @@ function createWindow() {
     height: 800,
     title: "Guild Tactical Parties",
     backgroundColor: "#000000",
+    icon: path.join(__dirname, "build", "icon.png"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
